@@ -44,6 +44,7 @@ impl super::Service {
 		//TODO: Dangling metadata in database if creation fails
 		let mut f = self.create_media_file(&key).await?;
 		f.write_all(file).await?;
+		self.record_write(mxc, file.len());
 
 		Ok(())
 	}
@@ -66,13 +67,19 @@ impl super::Service {
 		// 0, 0 because that's the original file
 		let dim = dim.normalized();
 
-		match self.db.search_file_metadata(mxc, &dim).await {
+		let thumbnail = match self.db.search_file_metadata(mxc, &dim).await {
 			| Ok(metadata) => self.get_thumbnail_saved(metadata).await,
 			| _ => match self.db.search_file_metadata(mxc, &Dim::default()).await {
 				| Ok(metadata) => self.get_thumbnail_generate(mxc, &dim, metadata).await,
 				| _ => Ok(None),
 			},
+		};
+
+		if let Ok(Some(FileMeta { content: Some(content), .. })) = &thumbnail {
+			self.record_read(mxc, content.len());
 		}
+
+		thumbnail
 	}
 
 	/// Using saved thumbnail
@@ -132,6 +139,7 @@ impl super::Service {
 
 		let mut f = self.create_media_file(&thumbnail_key).await?;
 		f.write_all(&thumbnail_bytes).await?;
+		self.record_write(mxc, thumbnail_bytes.len());
 
 		Ok(Some(into_filemeta(data, thumbnail_bytes)))
 	}

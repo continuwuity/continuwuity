@@ -45,6 +45,14 @@ impl Instruments {
 				.with_boundaries(duration_buckets())
 				.build()
 		};
+		let long_duration = |name: &'static str, description: &'static str| {
+			meter
+				.f64_histogram(name)
+				.with_description(description)
+				.with_unit("s")
+				.with_boundaries(long_duration_buckets())
+				.build()
+		};
 		let size = |name: &'static str, description: &'static str| {
 			meter
 				.u64_histogram(name)
@@ -55,11 +63,11 @@ impl Instruments {
 		};
 
 		Self {
-			federation_outgoing_request_duration: duration(
+			federation_outgoing_request_duration: long_duration(
 				"continuwuity.federation.outgoing.request.duration",
 				"Duration of outgoing federation requests",
 			),
-			federation_incoming_transaction_duration: duration(
+			federation_incoming_transaction_duration: long_duration(
 				"continuwuity.federation.incoming.transaction.duration",
 				"Time taken to process incoming federation transactions",
 			),
@@ -75,11 +83,13 @@ impl Instruments {
 			federation_incoming_pdu_lag: meter
 				.f64_histogram("continuwuity.federation.incoming.pdu.lag")
 				.with_description(
-					"Time between an accepted incoming PDU's origin_server_ts and its arrival",
+					"Time between an accepted incoming PDU's origin_server_ts and its \
+					 transaction arriving",
 				)
 				.with_unit("s")
 				.with_boundaries(vec![
 					0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 300.0, 900.0, 3600.0,
+					21600.0, 86400.0,
 				])
 				.build(),
 			federation_incoming_edus: meter
@@ -92,7 +102,7 @@ impl Instruments {
 				"Time taken to handle an incoming federation EDU",
 			),
 
-			sender_transaction_duration: duration(
+			sender_transaction_duration: long_duration(
 				"continuwuity.sender.transaction.duration",
 				"Duration of outgoing transactions by destination type and outcome",
 			),
@@ -129,6 +139,12 @@ impl Instruments {
 
 #[must_use]
 pub fn duration_buckets() -> Vec<f64> { (0..16).map(|i| 0.001 * f64::from(1_u32 << i)).collect() }
+
+/// Federation requests and transactions can run past the 60s default
+/// `federation_timeout`.
+fn long_duration_buckets() -> Vec<f64> {
+	(0..18).map(|i| 0.001 * f64::from(1_u32 << i)).collect()
+}
 
 fn size_buckets() -> Vec<f64> { (0..11).map(|i| 1024.0 * f64::from(4_u32.pow(i))).collect() }
 

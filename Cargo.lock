@@ -4002,8 +4002,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-instrumentation-tower"
 version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e7006f3b1853d315462a7237c81eec3d7adfa5b70975a02b19e92d045bc22d7"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust-contrib?rev=6bbbc337aab0bcf10d7799c3e5b5ced75920491a#6bbbc337aab0bcf10d7799c3e5b5ced75920491a"
 dependencies = [
  "axum",
  "http",

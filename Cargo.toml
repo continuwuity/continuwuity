@@ -435,7 +435,8 @@ features = ["reqwest"]
 version = "0.33.1"
 
 [workspace.dependencies.opentelemetry-instrumentation-tower]
-version = "0.19.0"
+git = "https://github.com/open-telemetry/opentelemetry-rust-contrib"
+rev = "6bbbc337aab0bcf10d7799c3e5b5ced75920491a"
 default-features = false
 features = ["axum"]
 

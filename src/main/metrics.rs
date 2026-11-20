@@ -26,18 +26,15 @@ pub(crate) fn init(
 
 	let mut builder = SdkMeterProvider::builder()
 		.with_resource(resource)
-		.with_view(|instrument: &Instrument| {
-			(instrument.name() == metric::HTTP_SERVER_REQUEST_DURATION)
-				.then(|| {
-					Stream::builder()
-						.with_aggregation(Aggregation::ExplicitBucketHistogram {
-							boundaries: duration_buckets(),
-							record_min_max: true,
-						})
-						.build()
-						.ok()
+		.with_view(|instrument: &Instrument| match instrument.name() {
+			| metric::HTTP_SERVER_REQUEST_DURATION => Stream::builder()
+				.with_aggregation(Aggregation::ExplicitBucketHistogram {
+					boundaries: duration_buckets(),
+					record_min_max: true,
 				})
-				.flatten()
+				.build()
+				.ok(),
+			| _ => None,
 		});
 
 	let registry = config
