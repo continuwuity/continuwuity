@@ -412,7 +412,7 @@
 # env: CONTINUWUITY_IP_LOOKUP_STRATEGY
 #ip_lookup_strategy = 5
 
-# The preferred source to use for getting the real client IP.
+# DEPRECATED: The preferred source to use for getting the real client IP.
 #
 # Takes any of the following options:
 #
@@ -431,9 +431,10 @@
 # to set this header" check; if the header selected is present, it is
 # used.
 #
-# Ignored if `accepted_ip_sources` is set.
+# Ignored if `accepted_ip_sources` is set. `accepted_ip_sources` is
+# the preferred alternative.
 #
-# If not set set, `direct` is used. Additionally, `direct` is used
+# If not set, `direct` is used. Additionally, `direct` is used
 # as a fallback if the chosen header is not found.
 #
 # env: CONTINUWUITY_REQUEST_IP_SOURCE

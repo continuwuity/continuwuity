@@ -490,7 +490,7 @@ pub struct Config {
 	#[serde(default = "default_ip_lookup_strategy")]
 	pub ip_lookup_strategy: u8,
 
-	/// The preferred source to use for getting the real client IP.
+	/// DEPRECATED: The preferred source to use for getting the real client IP.
 	///
 	/// Takes any of the following options:
 	///
@@ -509,9 +509,10 @@ pub struct Config {
 	/// to set this header" check; if the header selected is present, it is
 	/// used.
 	///
-	/// Ignored if `accepted_ip_sources` is set.
+	/// Ignored if `accepted_ip_sources` is set. `accepted_ip_sources` is
+	/// the preferred alternative.
 	///
-	/// If not set set, `direct` is used. Additionally, `direct` is used
+	/// If not set, `direct` is used. Additionally, `direct` is used
 	/// as a fallback if the chosen header is not found.
 	#[serde(default)]
 	pub request_ip_source: Option<String>,
@@ -3000,6 +3001,7 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
 	"otlp_protocol",
+	"request_ip_source",
 	"roomid_spacehierarchy_cache_capacity",
 	"unredacted_content_max_age_secs",
 	"well_known_client",
