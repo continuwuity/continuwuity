@@ -32,11 +32,12 @@ impl<'a> From<&'a str> for &'a Unquoted {
 	fn from(s: &'a str) -> &'a Unquoted {
 		let s: &'a str = s.unquote_infallible();
 
-		//SAFETY: This is a pattern I lifted from ruma-identifiers for
-		// strong-type strs by wrapping in a tuple-struct.
-		#[allow(clippy::transmute_ptr_to_ptr)]
+		// SAFETY: `Unquoted` is `#[repr(transparent)]` over `str`, so
+		// `*const str` and `*const Unquoted` have identical layout and
+		// metadata, and the returned reference preserves lifetime `'a`.
+		#[allow(clippy::as_conversions)]
 		unsafe {
-			std::mem::transmute(s)
+			&*(std::ptr::from_ref::<str>(s) as *const Unquoted)
 		}
 	}
 }
