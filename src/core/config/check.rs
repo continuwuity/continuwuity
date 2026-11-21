@@ -43,7 +43,7 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
-	if cfg!(all(feature = "mimalloc", feature = "jemalloc")) {
+	if cfg!(all(feature = "mimalloc", feature = "jemalloc", not(target_env = "msvc"))) {
 		debug_warn!(
 			"mimalloc and jemalloc compile-time features are both enabled, this causes jemalloc \
 			 to be used."
