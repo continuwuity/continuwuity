@@ -62,8 +62,11 @@ mod tests;
 #[derive(Debug)]
 enum TransactionStatus {
 	Running,
-	Failed(u32, Instant), // number of times failed, time of last failure
-	Retrying(u32),        // number of times failed
+	/// Number of times failed, time of last failure, and whether local backoff
+	/// applies even for federation destinations (e.g. after a local panic when
+	/// the remote was not marked unhealthy).
+	Failed(u32, Instant, bool),
+	Retrying(u32), // number of times failed
 }
 
 type SendingError = (Destination, Box<Error>);
@@ -152,10 +155,12 @@ impl Service {
 	) {
 		match response {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
-			// A bug on our side, not the remote's fault: retry with backoff
-			// without marking the remote unhealthy.
-			| Err((dest, e)) if e.is_panic() => Self::handle_response_err(dest, statuses, &e),
+			// A bug on our side, not the remote's fault: retry with local
+			// backoff without marking the remote unhealthy.
+			| Err((dest, e)) if e.is_panic() =>
+				Self::handle_response_err(dest, statuses, &e, true),
 			| Err((dest, e)) => {
+				let mut local_backoff = false;
 				if let Destination::Federation(dest) = &dest {
 					if self.services.federation.should_mark_stale(&e)
 						|| e.status_code() == StatusCode::NOT_FOUND
@@ -166,22 +171,30 @@ impl Service {
 					} else if e.status_code() != StatusCode::OK {
 						debug!("{dest} is now unhealthy due to error response: {e:?}");
 						self.services.federation.hit_unhealthy(dest.clone(), None);
+					} else {
+						local_backoff = true;
 					}
 				}
-				Self::handle_response_err(dest, statuses, &e);
+				Self::handle_response_err(dest, statuses, &e, local_backoff);
 			},
 		}
 	}
 
 	/// Handles a response error, incrementing the backoff factor.
-	fn handle_response_err(dest: Destination, statuses: &mut CurTransactionStatus, er: &Error) {
+	fn handle_response_err(
+		dest: Destination,
+		statuses: &mut CurTransactionStatus,
+		er: &Error,
+		local_backoff: bool,
+	) {
 		debug!(dest = ?dest, "{er:?}");
 		let dest2 = dest.clone();
 		statuses.entry(dest).and_modify(|e| {
 			*e = match e {
-				| TransactionStatus::Running => TransactionStatus::Failed(1, Instant::now()),
+				| TransactionStatus::Running =>
+					TransactionStatus::Failed(1, Instant::now(), local_backoff),
 				| &mut TransactionStatus::Retrying(ref n) =>
-					TransactionStatus::Failed(n.saturating_add(1), Instant::now()),
+					TransactionStatus::Failed(n.saturating_add(1), Instant::now(), local_backoff),
 				| TransactionStatus::Failed(..) => {
 					panic!(
 						"Request to {dest2:?} that was not even running ({e:?}) failed: {er:?}"
@@ -444,12 +457,17 @@ impl Service {
 					allow = false; // already running
 					trace!("Transaction is already running for {dest:?}");
 				},
-				| TransactionStatus::Failed(tries, _) => {
-					if allow {
+				| TransactionStatus::Failed(tries, time, local_backoff) => {
+					if *local_backoff
+						&& time.elapsed() < self.server.config.sender_retry_backoff(*tries)
+					{
+						allow = false;
+						trace!("{dest:?} is in local backoff, refusing send");
+					} else {
 						*e = TransactionStatus::Retrying(*tries);
 						trace!("Previous transaction failed for {dest:?} ({e:?}), will retry");
+						retry = true;
 					}
-					retry = true;
 				},
 			});
 
@@ -468,7 +486,7 @@ impl Service {
 		statuses
 			.entry(dest.clone())
 			.and_modify(|e| match e {
-				| TransactionStatus::Failed(tries, time) => {
+				| TransactionStatus::Failed(tries, time, _) => {
 					let retry_after = self.server.config.sender_retry_backoff(*tries);
 					if time.elapsed() < retry_after {
 						debug_warn!("Not retrying destination for another {retry_after:?}");

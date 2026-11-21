@@ -38,7 +38,8 @@ async fn panicked_transaction_is_kept_for_retry_without_blaming_the_remote() {
 		.await;
 	let retry_after = sending.services.federation.retry_after(server);
 	let sending_next = futures.len();
-	let failed = matches!(statuses.get(&dest), Some(TransactionStatus::Failed(1, _)));
+	let failed = matches!(statuses.get(&dest), Some(TransactionStatus::Failed(1, _, true)));
+	let immediate_retry = sending.should_attempt_send(&dest, &mut statuses).unwrap();
 
 	drop(futures);
 	drop(services);
@@ -52,6 +53,7 @@ async fn panicked_transaction_is_kept_for_retry_without_blaming_the_remote() {
 	);
 	assert_eq!(sending_next, 0);
 	assert!(failed);
+	assert_eq!(immediate_retry, (false, false));
 	assert_eq!(retry_after, None);
 }
 
