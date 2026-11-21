@@ -13,11 +13,21 @@ pub struct Module {
 }
 
 impl Module {
-	pub fn from_name(name: &str) -> Result<Self> { Self::from_path(path::from_name(name)?) }
+	/// # Safety
+	/// See [`new::from_name`]: loads a shared library via `dlopen(3)` and runs
+	/// its initialization routines.
+	pub unsafe fn from_name(name: &str) -> Result<Self> {
+		// SAFETY: Upheld by caller.
+		unsafe { Self::from_path(path::from_name(name)?) }
+	}
 
-	pub fn from_path(path: OsString) -> Result<Self> {
+	/// # Safety
+	/// See [`new::from_path`]: loads a shared library via `dlopen(3)` and runs
+	/// its initialization routines.
+	pub unsafe fn from_path(path: OsString) -> Result<Self> {
 		Ok(Self {
-			handle: Some(new::from_path(&path)?),
+			// SAFETY: Upheld by caller.
+			handle: Some(unsafe { new::from_path(&path)? }),
 			loaded: SystemTime::now(),
 			path,
 		})
@@ -38,16 +48,24 @@ impl Module {
 		}
 	}
 
-	pub fn get<Prototype>(&self, name: &str) -> Result<Symbol<Prototype>> {
+	/// Look up a symbol in this module via `dlsym(3)`.
+	///
+	/// # Safety
+	/// `Prototype` is not checked against the symbol's actual type or ABI in
+	/// the loaded shared library. The caller must ensure `name` refers to a
+	/// symbol whose type, calling convention, and ABI exactly match
+	/// `Prototype`.
+	pub unsafe fn get<Prototype>(&self, name: &str) -> Result<Symbol<'_, Prototype>> {
 		let cname = CString::new(name.to_owned()).expect("terminated string from provided name");
 		let handle = self
 			.handle
 			.as_ref()
 			.expect("backing library loaded by this instance");
 
-		// SAFETY: Calls dlsym(3) on unix platforms. This might not have to be
-		// unsafe if wrapped in libloading with_dlerror().
-		let sym = unsafe { handle.get::<Prototype>(cname.as_bytes()) };
+		// SAFETY: Caller guarantees `Prototype` matches the symbol's actual
+		// type and ABI. Passing `as_bytes_with_nul()` avoids a redundant copy
+		// inside `libloading`.
+		let sym = unsafe { handle.get::<Prototype>(cname.as_bytes_with_nul()) };
 		let sym = sym.expect("symbol found; binding successful");
 
 		Ok(sym)

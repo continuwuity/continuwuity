@@ -42,7 +42,10 @@ pub(crate) async fn run(server: &Arc<Server>, starts: bool) -> Result<(bool, boo
 	let main_lock = server.mods.read().await;
 	let main_mod = (*main_lock).last().expect("main module loaded");
 	if starts {
-		let start = main_mod.get::<StartFuncProto>("start")?;
+		// SAFETY: `conduwuit_router` exports `#[unsafe(no_mangle)] pub extern
+		// "Rust" fn start` with signature matching `StartFuncProto`, compiled
+		// with the same toolchain and flags.
+		let start = unsafe { main_mod.get::<StartFuncProto>("start")? };
 		match start(&server.server).await {
 			| Ok(services) => server.services.lock().await.insert(services),
 			| Err(error) => {
@@ -54,7 +57,10 @@ pub(crate) async fn run(server: &Arc<Server>, starts: bool) -> Result<(bool, boo
 
 	server.server.stopping.store(false, Ordering::Release);
 
-	let run = main_mod.get::<RunFuncProto>("run")?;
+	// SAFETY: `conduwuit_router` exports `#[unsafe(no_mangle)] pub extern
+	// "Rust" fn run` with signature matching `RunFuncProto`, compiled with the
+	// same toolchain and flags.
+	let run = unsafe { main_mod.get::<RunFuncProto>("run")? };
 	if let Err(error) = run(server
 		.services
 		.lock()
@@ -72,7 +78,10 @@ pub(crate) async fn run(server: &Arc<Server>, starts: bool) -> Result<(bool, boo
 	let stops = !reloads || stale_from_mods(&main_lock)? <= restart_thresh();
 	let starts = reloads && stops;
 	if stops {
-		let stop = main_mod.get::<StopFuncProto>("stop")?;
+		// SAFETY: `conduwuit_router` exports `#[unsafe(no_mangle)] pub extern
+		// "Rust" fn stop` with signature matching `StopFuncProto`, compiled
+		// with the same toolchain and flags.
+		let stop = unsafe { main_mod.get::<StopFuncProto>("stop")? };
 		if let Err(error) = stop(
 			server
 				.services
@@ -102,7 +111,9 @@ pub(crate) async fn open(server: &Arc<Server>) -> Result<usize, Error> {
 
 	for (i, name) in MODULE_NAMES.iter().enumerate() {
 		if mods.get(i).is_none() {
-			mods.push(mods::Module::from_name(name)?);
+			// SAFETY: `MODULE_NAMES` are this workspace's own hot-reloadable
+			// shared libraries built with the same compiler/ABI.
+			mods.push(unsafe { mods::Module::from_name(name)? });
 		}
 	}
 
