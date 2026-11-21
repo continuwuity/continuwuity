@@ -170,47 +170,50 @@ impl Service {
 
 		let state_hash = calculate_hash(state_ids_compressed.iter().map(|s| &s[..]));
 
-		let (shortstatehash, already_existed) = self
-			.services
-			.short
-			.get_or_create_shortstatehash(&state_hash)
-			.await;
-
-		if !already_existed {
-			let states_parents = match previous_shortstatehash {
-				| Ok(p) =>
-					self.services
-						.state_compressor
-						.load_shortstatehash_info(p)
-						.await?,
-				| _ => Vec::new(),
-			};
-
-			let (statediffnew, statediffremoved) =
-				if let Some(parent_stateinfo) = states_parents.last() {
-					let statediffnew: CompressedState = state_ids_compressed
-						.difference(&parent_stateinfo.full_state)
-						.copied()
-						.collect();
-
-					let statediffremoved: CompressedState = parent_stateinfo
-						.full_state
-						.difference(&state_ids_compressed)
-						.copied()
-						.collect();
-
-					(Arc::new(statediffnew), Arc::new(statediffremoved))
-				} else {
-					(state_ids_compressed, Arc::new(CompressedState::new()))
+		let shortstatehash =
+			if let Ok(existing) = self.services.short.get_shortstatehash(&state_hash).await {
+				existing
+			} else {
+				let states_parents = match previous_shortstatehash {
+					| Ok(p) =>
+						self.services
+							.state_compressor
+							.load_shortstatehash_info(p)
+							.await?,
+					| _ => Vec::new(),
 				};
-			self.services.state_compressor.save_state_from_diff(
-				shortstatehash,
-				statediffnew,
-				statediffremoved,
-				1_000_000, // high number because no state will be based on this one
-				states_parents,
-			)?;
-		}
+
+				let (statediffnew, statediffremoved) =
+					if let Some(parent_stateinfo) = states_parents.last() {
+						let statediffnew: CompressedState = state_ids_compressed
+							.difference(&parent_stateinfo.full_state)
+							.copied()
+							.collect();
+
+						let statediffremoved: CompressedState = parent_stateinfo
+							.full_state
+							.difference(&state_ids_compressed)
+							.copied()
+							.collect();
+
+						(Arc::new(statediffnew), Arc::new(statediffremoved))
+					} else {
+						(state_ids_compressed, Arc::new(CompressedState::new()))
+					};
+
+				let new_shortstatehash = self.services.globals.next_count()?;
+				self.services.state_compressor.save_state_from_diff(
+					new_shortstatehash,
+					statediffnew,
+					statediffremoved,
+					1_000_000, // high number because no state will be based on this one
+					states_parents,
+				)?;
+				self.services
+					.short
+					.set_shortstatehash(&state_hash, new_shortstatehash);
+				new_shortstatehash
+			};
 
 		self.db
 			.shorteventid_shortstatehash

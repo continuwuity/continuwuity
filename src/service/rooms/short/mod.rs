@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt::Debug, mem::size_of_val, sync::Arc};
+use std::{borrow::Borrow, collections::HashMap, fmt::Debug, mem::size_of_val, sync::Arc};
 
 pub use conduwuit::matrix::pdu::{ShortEventId, ShortId, ShortRoomId, ShortStateKey};
 use conduwuit::{
@@ -72,14 +72,22 @@ impl Service {
 	where
 		I: Iterator<Item = &'a EventId> + Clone + Debug + Send + 'a,
 	{
+		let mut created: HashMap<OwnedEventId, ShortEventId> = HashMap::new();
 		event_ids
 			.clone()
 			.stream()
 			.get(&self.db.eventid_shorteventid)
 			.zip(event_ids.into_iter().stream())
-			.map(|(result, event_id)| match result {
+			.map(move |(result, event_id)| match result {
 				| Ok(ref short) => utils::u64_from_u8(short),
-				| Err(_) => self.create_shorteventid(event_id),
+				| Err(_) =>
+					if let Some(&short) = created.get(event_id) {
+						short
+					} else {
+						let short = self.create_shorteventid(event_id);
+						created.insert(event_id.to_owned(), short);
+						short
+					},
 			})
 	}
 
@@ -217,32 +225,24 @@ impl Service {
 			.map(Deserialized::deserialized)
 	}
 
-	/// Gets or creates a short state hash ID. The boolean indicates whether a
-	/// new short ID was created.
-	pub async fn get_or_create_shortstatehash(
-		&self,
-		state_hash: &[u8],
-	) -> (ShortStateHash, bool) {
-		const BUFSIZE: usize = size_of::<ShortStateHash>();
-
-		if let Ok(shortstatehash) = self
-			.db
+	/// Gets an existing short state hash ID without creating one.
+	pub async fn get_shortstatehash(&self, state_hash: &[u8]) -> Result<ShortStateHash> {
+		self.db
 			.statehash_shortstatehash
 			.get(state_hash)
 			.await
 			.deserialized()
-		{
-			return (shortstatehash, true);
-		}
+	}
 
-		let shortstatehash = self.services.globals.next_count().unwrap();
+	/// Publishes the mapping from state hash to short state hash after the
+	/// corresponding state diff has been written.
+	pub fn set_shortstatehash(&self, state_hash: &[u8], shortstatehash: ShortStateHash) {
+		const BUFSIZE: usize = size_of::<ShortStateHash>();
 		debug_assert!(size_of_val(&shortstatehash) == BUFSIZE, "buffer requirement changed");
 
 		self.db
 			.statehash_shortstatehash
 			.raw_aput::<BUFSIZE, _, _>(state_hash, shortstatehash);
-
-		(shortstatehash, false)
 	}
 
 	/// Gets a short room ID.

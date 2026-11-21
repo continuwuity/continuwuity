@@ -18,7 +18,7 @@ use lru_cache::LruCache;
 use ruma::{EventId, RoomId};
 
 use crate::{
-	Dep, rooms,
+	Dep, globals, rooms,
 	rooms::short::{ShortEventId, ShortId, ShortStateHash, ShortStateKey},
 };
 
@@ -29,6 +29,7 @@ pub struct Service {
 }
 
 struct Services {
+	globals: Dep<globals::Service>,
 	short: Dep<rooms::short::Service>,
 	state: Dep<rooms::state::Service>,
 }
@@ -78,6 +79,7 @@ impl crate::Service for Service {
 				shortstatehash_statediff: args.db["shortstatehash_statediff"].clone(),
 			},
 			services: Services {
+				globals: args.depend::<globals::Service>("globals"),
 				short: args.depend::<rooms::short::Service>("rooms::short"),
 				state: args.depend::<rooms::state::Service>("rooms::state"),
 			},
@@ -368,17 +370,17 @@ impl Service {
 		let state_hash =
 			utils::calculate_hash(new_state_ids_compressed.iter().map(|bytes| &bytes[..]));
 
-		let (new_shortstatehash, already_existed) = self
+		let existing = self
 			.services
 			.short
-			.get_or_create_shortstatehash(&state_hash)
-			.await;
+			.get_shortstatehash(&state_hash)
+			.await
+			.ok();
 
-		if Some(new_shortstatehash) == previous_shortstatehash {
-			return Ok(HashSetCompressStateEvent {
-				shortstatehash: new_shortstatehash,
-				..Default::default()
-			});
+		if let Some(shortstatehash) = existing
+			&& Some(shortstatehash) == previous_shortstatehash
+		{
+			return Ok(HashSetCompressStateEvent { shortstatehash, ..Default::default() });
 		}
 
 		let states_parents = if let Some(p) = previous_shortstatehash {
@@ -405,7 +407,10 @@ impl Service {
 				(new_state_ids_compressed, Arc::new(CompressedState::new()))
 			};
 
-		if !already_existed {
+		let new_shortstatehash = if let Some(existing) = existing {
+			existing
+		} else {
+			let new_shortstatehash = self.services.globals.next_count()?;
 			self.save_state_from_diff(
 				new_shortstatehash,
 				statediffnew.clone(),
@@ -413,7 +418,11 @@ impl Service {
 				2, // every state change is 2 event changes on average
 				states_parents,
 			)?;
-		}
+			self.services
+				.short
+				.set_shortstatehash(&state_hash, new_shortstatehash);
+			new_shortstatehash
+		};
 
 		Ok(HashSetCompressStateEvent {
 			shortstatehash: new_shortstatehash,
@@ -437,7 +446,10 @@ impl Service {
 				err!(Database("Failed to find StateDiff from short {shortstatehash:?}: {e}"))
 			})?;
 
-		let parent = utils::u64_from_bytes(&value[0..size_of::<u64>()])
+		let parent_bytes = value
+			.get(0..size_of::<u64>())
+			.ok_or_else(|| err!(Database("Truncated StateDiff for short {shortstatehash:?}")))?;
+		let parent = utils::u64_from_bytes(parent_bytes)
 			.ok()
 			.take_if(|parent| *parent != 0);
 
@@ -472,10 +484,14 @@ impl Service {
 
 	/// Stores a new state diff with a shortstatehash.
 	fn save_statediff(&self, shortstatehash: ShortStateHash, diff: &StateDiff) {
+		const STRIDE: usize = size_of::<ShortStateHash>();
+
 		let mut value = Vec::<u8>::with_capacity(
-			2_usize
-				.saturating_add(diff.added.len())
-				.saturating_add(diff.removed.len()),
+			1_usize
+				.saturating_add(usize::from(!diff.removed.is_empty()))
+				.saturating_add(diff.added.len().saturating_mul(2))
+				.saturating_add(diff.removed.len().saturating_mul(2))
+				.saturating_mul(STRIDE),
 		);
 
 		let parent = diff.parent.unwrap_or(0_u64);
