@@ -888,7 +888,6 @@ dependencies = [
  "const-str",
  "ctor",
  "dtor",
- "hardened_malloc-rs",
  "log",
  "opentelemetry",
  "opentelemetry-otlp",
