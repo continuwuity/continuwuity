@@ -1,8 +1,6 @@
 use std::{
-	cell::{Cell, RefCell},
 	ops::Deref,
-	ptr,
-	ptr::null_mut,
+	ptr::NonNull,
 	sync::{
 		Arc,
 		atomic::{AtomicPtr, Ordering},
@@ -10,119 +8,178 @@ use std::{
 };
 
 use super::Config;
-use crate::Result;
+use crate::{Result, SyncMutex};
 
 /// The configuration manager is an indirection to reload the configuration for
 /// the server while it is running. In order to not burden or clutter the many
 /// callsites which query for configuration items, this object implements Deref
 /// for the actively loaded configuration.
+///
+/// Every installed `Arc<Config>` is kept at a stable heap address in `retired`
+/// for the entire lifetime of `Manager` (intentionally retaining prior configs
+/// across the rare, admin-triggered reloads until shutdown). Because
+/// `Deref::deref(&self)` ties the returned `&Arc<Config>` lifetime to `&self`,
+/// readers can perform a single `Acquire` load with no locking, no TLS, and no
+/// risk of dangling or aliasing UB across reloads.
 pub struct Manager {
-	active: AtomicPtr<Config>,
+	active: AtomicPtr<Arc<Config>>,
+	/// Append-only owner of every `Box<Arc<Config>>` ever published to
+	/// `active` (including the currently active config). Entries are only
+	/// freed when `Manager` itself is dropped (`&mut self`), guaranteeing that
+	/// any `&Arc<Config>` returned by `Deref::deref` remains valid and
+	/// immutable for the lifetime of `self`.
+	retired: SyncMutex<Vec<PinnedConfig>>,
 }
 
-thread_local! {
-	static INDEX: Cell<usize> = 0.into();
-	static HANDLE: RefCell<Handles> = const {
-		RefCell::new([const { None }; HISTORY])
-	};
+/// Heap-pinned `Arc<Config>` stored as a raw `NonNull` rather than `Box` so
+/// moving it (e.g., when `Vec` reallocates) never retags or invalidates raw
+/// pointers previously published to `Manager::active`.
+struct PinnedConfig(NonNull<Arc<Config>>);
+
+// SAFETY: `Arc<Config>` is `Send + Sync`, and `PinnedConfig` uniquely owns the
+// `Box<Arc<Config>>` allocation until it is dropped in `Manager::drop`.
+unsafe impl Send for PinnedConfig {}
+
+impl PinnedConfig {
+	fn new(config: Config) -> Self {
+		let ptr = Box::into_raw(Box::new(Arc::new(config)));
+		Self(NonNull::new(ptr).expect("Box::into_raw returned null"))
+	}
+
+	#[inline]
+	const fn as_ptr(&self) -> *mut Arc<Config> { self.0.as_ptr() }
 }
 
-type Handle = Option<Arc<Config>>;
-type Handles = [Handle; HISTORY];
-
-const HISTORY: usize = 8;
+impl Drop for PinnedConfig {
+	fn drop(&mut self) {
+		// SAFETY: `self.0` was created via `Box::into_raw` in
+		// `PinnedConfig::new` and is only dropped when `Manager` itself is
+		// dropped (`&mut self`), after all borrows derived from `Deref::deref`
+		// have ended.
+		unsafe {
+			drop(Box::from_raw(self.0.as_ptr()));
+		}
+	}
+}
 
 impl Manager {
 	pub(crate) fn new(config: Config) -> Self {
-		let config = Arc::new(config);
+		let pinned = PinnedConfig::new(config);
+		let ptr = pinned.as_ptr();
 		Self {
-			active: AtomicPtr::new(Arc::into_raw(config).cast_mut()),
+			active: AtomicPtr::new(ptr),
+			retired: SyncMutex::new(vec![pinned]),
 		}
 	}
 
 	/// Update the active configuration, returning prior configuration.
 	#[tracing::instrument(skip_all, level = "info")]
 	pub fn update(&self, config: Config) -> Result<Arc<Config>> {
-		let config = Arc::new(config);
-		let new = Arc::into_raw(config);
-		let old = self.active.swap(new.cast_mut(), Ordering::AcqRel);
+		let pinned = PinnedConfig::new(config);
+		let new_ptr = pinned.as_ptr();
 
-		// SAFETY: The old active pointer was set using an Arc::into_raw().
-		// We're obliged to reconstitute that into Arc otherwise it will leak.
-		Ok(unsafe { Arc::from_raw(old) })
-	}
+		let mut retired = self.retired.lock();
+		// Push before publishing to `active` so ownership is recorded even if
+		// `Vec::push` were to unwind.
+		retired.push(pinned);
 
-	fn load(&self, handle: &mut [Option<Arc<Config>>]) -> &'static Arc<Config> {
-		let config = self.active.load(Ordering::Acquire);
+		// `Release` publishes the initialized `Box<Arc<Config>>` to readers
+		// performing `Acquire` loads in `Deref::deref`.
+		let old_ptr = self.active.swap(new_ptr, Ordering::AcqRel);
 
-		// Branch taken after config reload or first access by this thread.
-		if handle[INDEX.get()]
-			.as_ref()
-			.is_none_or(|handle| !ptr::eq(config, Arc::as_ptr(handle)))
-		{
-			INDEX.set(INDEX.get().wrapping_add(1).wrapping_rem(HISTORY));
-			return load_miss(handle, INDEX.get(), config);
-		}
+		// SAFETY: `old_ptr` points to a `PinnedConfig` still owned by `retired`
+		// and cannot be freed until `Manager` is dropped.
+		let old = unsafe { Arc::clone(&*old_ptr) };
 
-		let config: &Arc<Config> = handle[INDEX.get()]
-			.as_ref()
-			.expect("handle was already cached for this thread");
-
-		// SAFETY: The caller should not hold multiple references at a time
-		// directly into Config, as a subsequent reference might invalidate
-		// the thread's cache causing another reference to dangle.
-		//
-		// This is a highly unusual pattern as most config values are copied by
-		// value or used immediately without running overlap with another
-		// value. Even if it does actually occur somewhere, the window of
-		// danger is limited to the config being reloaded while the reference
-		// is held and another access is made by the same thread into a
-		// different config value. This is mitigated by creating a buffer
-		// of old configs rather than discarding at the earliest opportunity;
-		// the odds of this scenario are thus astronomical.
-		unsafe { std::mem::transmute(config) }
-	}
-}
-
-impl Drop for Manager {
-	fn drop(&mut self) {
-		let config = self.active.swap(null_mut(), Ordering::AcqRel);
-
-		// SAFETY: The active pointer was set using an Arc::into_raw(). We're
-		// obliged to reconstitute that into Arc otherwise it will leak.
-		unsafe { Arc::from_raw(config) };
+		Ok(old)
 	}
 }
 
 impl Deref for Manager {
 	type Target = Arc<Config>;
 
-	fn deref(&self) -> &Self::Target { HANDLE.with_borrow_mut(|handle| self.load(handle)) }
+	#[inline]
+	fn deref(&self) -> &Self::Target {
+		let ptr = self.active.load(Ordering::Acquire);
+
+		// SAFETY: `ptr` was initialized in `Manager::new` or published via
+		// `Ordering::AcqRel` in `Manager::update` and points to a
+		// `PinnedConfig` in `self.retired`. Entries in `self.retired` are never
+		// removed or mutated until `Manager` is dropped (`&mut self`), so the
+		// returned `&'self Arc<Config>` remains valid and immutable for the
+		// entire borrow of `self`.
+		unsafe { &*ptr }
+	}
 }
 
-#[tracing::instrument(
-	name = "miss",
-	level = "trace",
-	skip_all,
-	fields(%index, ?config)
-)]
-#[allow(clippy::transmute_ptr_to_ptr)]
-fn load_miss(
-	handle: &mut [Option<Arc<Config>>],
-	index: usize,
-	config: *const Config,
-) -> &'static Arc<Config> {
-	// SAFETY: The active pointer was set prior and always remains valid. We're
-	// reconstituting the Arc here but as a new reference, so the count is
-	// incremented. This instance will be cached in the thread-local.
-	let config = unsafe {
-		Arc::increment_strong_count(config);
-		Arc::from_raw(config)
-	};
+#[cfg(test)]
+mod tests {
+	use std::thread;
 
-	// SAFETY: See the note on the transmute above. The caller should not hold
-	// more than one reference at a time directly into Config, as the second
-	// access might invalidate the thread's cache, dangling the reference to
-	// the first.
-	unsafe { std::mem::transmute(handle[index].insert(config)) }
+	use super::*;
+
+	fn test_config(server_name: &str) -> Config {
+		use figment::{
+			Figment,
+			providers::{Format, Toml},
+		};
+
+		let raw = format!("server_name = \"{server_name}\"\ndatabase_path = \"/tmp\"\n");
+		Figment::new()
+			.merge(Toml::string(&raw))
+			.extract()
+			.expect("valid test config")
+	}
+
+	#[test]
+	fn deref_survives_many_reloads() {
+		let manager = Manager::new(test_config("initial.example"));
+		let first: &Arc<Config> = &manager;
+		let first_name: &str = first.server_name.as_str();
+
+		for i in 0..32 {
+			let prev = manager
+				.update(test_config(&format!("reload-{i}.example")))
+				.expect("update succeeds");
+			if i == 0 {
+				assert_eq!(prev.server_name.as_str(), "initial.example");
+			}
+		}
+
+		// Original reference remains valid and unchanged after > HISTORY
+		// reloads.
+		assert_eq!(first_name, "initial.example");
+		assert_eq!(manager.server_name.as_str(), "reload-31.example");
+	}
+
+	#[test]
+	fn concurrent_reads_and_updates() {
+		let manager = Manager::new(test_config("start.example"));
+
+		thread::scope(|s| {
+			for _ in 0..4 {
+				s.spawn(|| {
+					for _ in 0..200 {
+						let cfg: &Arc<Config> = &manager;
+						assert!(cfg.server_name.as_str().ends_with(".example"));
+					}
+				});
+			}
+
+			s.spawn(|| {
+				for i in 0..32 {
+					let _ = manager
+						.update(test_config(&format!("iter-{i}.example")))
+						.expect("update succeeds");
+				}
+			});
+		});
+	}
+
+	#[test]
+	fn reference_outlives_scoped_thread() {
+		let manager = Manager::new(test_config("scoped.example"));
+		let cfg_ref: &Arc<Config> = thread::scope(|s| s.spawn(|| &*manager).join().unwrap());
+		assert_eq!(cfg_ref.server_name.as_str(), "scoped.example");
+	}
 }
