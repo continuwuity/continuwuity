@@ -32,6 +32,7 @@ jemalloc = [
     "dep:tikv-jemallocator",
 ]
 mimalloc = [
+    "dep:libmimalloc-sys",
     "dep:mimalloc",
 ]
 jemalloc_conf = []
@@ -118,6 +119,8 @@ lock_api.workspace = true
 hyper-util.workspace = true
 resolvematrix.workspace = true
 openidconnect.workspace = true
+libmimalloc-sys.optional = true
+libmimalloc-sys.workspace = true
 mimalloc.optional = true
 mimalloc.workspace = true
 
