@@ -12,6 +12,17 @@ impl super::Map {
 	/// Iterate key-value entries in the map from the beginning.
 	///
 	/// - Result is deserialized
+	///
+	/// # Unsoundness
+	/// Because Rust's `Stream` trait does not support lending items tied to
+	/// `&mut self`, `stream::slice_longevity` unsafely extends the lifetime of
+	/// raw RocksDB iterator slices to `'a` (the borrow of `Arc<Map>`). As a
+	/// consequence, borrowed deserialized types (e.g. `&str`, `&UserId`,
+	/// `&[u8]`) reference the underlying RocksDB cursor buffer and are
+	/// invalidated on the next poll of the stream. Do not hold borrowed items
+	/// across polls (e.g. via `collect()`, `ready_chunks()`, `peekable()`,
+	/// `buffered()`, `buffer_unordered()`, `broadband`, or `wideband`) without
+	/// converting them to owned values first.
 	pub fn stream<'a, K, V>(
 		self: &'a Arc<Self>,
 	) -> impl Stream<Item = Result<KeyVal<'a, K, V>>> + Send
