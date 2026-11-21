@@ -120,21 +120,13 @@ pub fn cores_available() -> impl Iterator<Item = Id> { from_mask(*CORES_AVAILABL
 pub fn getcpu() -> Result<usize> {
 	use crate::{Error, utils::math};
 
-	// SAFETY: This is part of an interface with many low-level calls taking
-	// many raw params, but it's unclear why this specific call is unsafe.
-	// Nevertheless the value obtained here is semantically unsafe because it
-	// can change on the instruction boundary trailing its own acquisition and
-	// also any other time.
+	// SAFETY: `sched_getcpu(2)` takes no pointers and has no preconditions.
+	// Note that it may still return -1 with errno set (e.g. under seccomp
+	// filters or kernels without getcpu support), so the error branch below
+	// must remain live.
 	let ret: i32 = unsafe { libc::sched_getcpu() };
 
-	#[cfg(target_os = "linux")]
-	// SAFETY: On modern linux systems with a vdso if we can optimize away the branch checking
-	// for error (see getcpu(2)) then this system call becomes a memory access.
-	unsafe {
-		std::hint::assert_unchecked(ret >= 0);
-	};
-
-	if ret == -1 {
+	if ret < 0 {
 		return Err(Error::from_errno());
 	}
 
