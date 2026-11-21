@@ -414,7 +414,7 @@ struct MFederate {
 ///
 /// 1. It passes auth checks (aka is valid)
 /// 2. The room is federated (there's no point persisting unfederated rooms)
-async fn validate_invite_create_event(
+pub(crate) async fn validate_invite_create_event(
 	pdu: &PduEvent,
 	room_version_rules: &RoomVersionRules,
 ) -> Result {

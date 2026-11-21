@@ -4,18 +4,16 @@ use conduwuit::{Err, Event, Pdu, Result, is_not_empty, utils::ReadyExt};
 use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
-	OwnedServerName, RoomId, UserId,
+	CanonicalJsonObject, OwnedServerName, RoomId, UserId,
 	api::federation::membership::RawStrippedState,
 	events::{
-		AnyStrippedStateEvent, GlobalAccountDataEventType, RoomAccountDataEventType,
-		StateEventType,
+		GlobalAccountDataEventType, RoomAccountDataEventType, StateEventType,
 		direct::DirectEvent,
 		room::{
 			create::RoomCreateEventContent,
 			member::{MembershipState, RoomMemberEventContent},
 		},
 	},
-	serde::Raw,
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
 
@@ -274,7 +272,7 @@ impl super::Service {
 		&self,
 		user_id: &UserId,
 		room_id: &RoomId,
-		knocked_state: Option<Vec<Raw<AnyStrippedStateEvent>>>,
+		knocked_state: Option<Vec<&CanonicalJsonObject>>,
 	) {
 		let userroom_id = (user_id, room_id);
 		let userroom_id = serialize_key(userroom_id).expect("failed to serialize userroom_id");
