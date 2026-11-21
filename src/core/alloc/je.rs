@@ -83,6 +83,8 @@ type Key = ArrayVec<usize, KEY_SEGS>;
 
 const NAME_MAX: usize = 128;
 const KEY_SEGS: usize = 8;
+const ARENA_LIMIT: usize = 4095;
+const ARENAS_ALL: usize = 4096;
 
 #[ctor::ctor(unsafe)]
 fn _static_initialization() {
@@ -280,20 +282,30 @@ pub mod this_thread {
 		super::get(&mallctl!("thread.deallocated")).unwrap_or_default()
 	}
 
-	fn notify(key: Key) -> Result { super::notify_by_arena(Some(arena_id()?), key) }
-
-	fn set<T>(key: Key, val: T) -> Result<T>
-	where
-		T: Copy + Debug,
-	{
-		super::set_by_arena(Some(arena_id()?), key, val)
+	// `key` must be an `arena.<i>.*` MIB (`key.len() >= 2`). `arena_id()` returns
+	// this thread's own valid arena (< narenas < ARENA_LIMIT), so we skip
+	// `validate_arena_id()` to avoid locking `ctl_mtx` on hot paths like `decay()`.
+	fn notify(mut key: Key) -> Result {
+		key[1] = arena_id()?;
+		super::notify(&key)
 	}
 
-	fn get<T>(key: Key) -> Result<T>
+	fn set<T>(mut key: Key, val: T) -> Result<T>
 	where
 		T: Copy + Debug,
 	{
-		super::get_by_arena(Some(arena_id()?), key)
+		// `arena_id()` is already a valid arena index; skip `validate_arena_id()`.
+		key[1] = arena_id()?;
+		super::set(&key, val)
+	}
+
+	fn get<T>(mut key: Key) -> Result<T>
+	where
+		T: Copy + Debug,
+	{
+		// `arena_id()` is already a valid arena index; skip `validate_arena_id()`.
+		key[1] = arena_id()?;
+		super::get(&key)
 	}
 }
 
@@ -323,16 +335,14 @@ pub fn decay<I: Into<Option<usize>>>(arena: I) -> Result {
 
 pub fn set_muzzy_decay<I: Into<Option<usize>>>(arena: I, decay_ms: isize) -> Result<isize> {
 	match arena.into() {
-		| Some(arena) =>
-			set_by_arena(Some(arena), mallctl!("arena.4096.muzzy_decay_ms"), decay_ms),
+		| Some(arena) => set_by_arena(arena, mallctl!("arena.0.muzzy_decay_ms"), decay_ms),
 		| _ => set(&mallctl!("arenas.muzzy_decay_ms"), decay_ms),
 	}
 }
 
 pub fn set_dirty_decay<I: Into<Option<usize>>>(arena: I, decay_ms: isize) -> Result<isize> {
 	match arena.into() {
-		| Some(arena) =>
-			set_by_arena(Some(arena), mallctl!("arena.4096.dirty_decay_ms"), decay_ms),
+		| Some(arena) => set_by_arena(arena, mallctl!("arena.0.dirty_decay_ms"), decay_ms),
 		| _ => set(&mallctl!("arenas.dirty_decay_ms"), decay_ms),
 	}
 }
@@ -369,25 +379,33 @@ pub fn inc_epoch() -> Result<u64> { xchg(&mallctl!("epoch"), 1_u64) }
 
 pub fn acq_epoch() -> Result<u64> { xchg(&mallctl!("epoch"), 0_u64) }
 
+fn validate_arena_id(id: usize, allow_all: bool) -> Result<usize> {
+	if allow_all && id == ARENAS_ALL {
+		return Ok(id);
+	}
+
+	let narenas = arenas()?.min(ARENA_LIMIT);
+	if id < narenas {
+		Ok(id)
+	} else {
+		Err(err!("mallctl: invalid arena index {id} (narenas: {narenas})"))
+	}
+}
+
 fn notify_by_arena(id: Option<usize>, mut key: Key) -> Result {
-	key[1] = id.unwrap_or(4096);
+	key[1] = match id {
+		| Some(id) => validate_arena_id(id, true)?,
+		| None => ARENAS_ALL,
+	};
 	notify(&key)
 }
 
-fn set_by_arena<T>(id: Option<usize>, mut key: Key, val: T) -> Result<T>
+fn set_by_arena<T>(id: usize, mut key: Key, val: T) -> Result<T>
 where
 	T: Copy + Debug,
 {
-	key[1] = id.unwrap_or(4096);
+	key[1] = validate_arena_id(id, false)?;
 	set(&key, val)
-}
-
-fn get_by_arena<T>(id: Option<usize>, mut key: Key) -> Result<T>
-where
-	T: Copy + Debug,
-{
-	key[1] = id.unwrap_or(4096);
-	get(&key)
 }
 
 fn notify(key: &Key) -> Result {
