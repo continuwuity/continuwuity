@@ -40,7 +40,8 @@ const MALLOC_CONF_BYTES: &[u8] = const_str::concat_bytes!(
 );
 
 #[cfg(all(feature = "jemalloc_conf", target_os = "linux"))]
-const MALLOC_CONF_PLATFORM: &str = ",percpu_arena:percpu,metadata_thp:always,background_thread:true";
+const MALLOC_CONF_PLATFORM: &str =
+	",percpu_arena:percpu,metadata_thp:always,background_thread:true";
 #[cfg(all(feature = "jemalloc_conf", not(target_os = "linux")))]
 const MALLOC_CONF_PLATFORM: &str = "";
 
@@ -258,13 +259,15 @@ pub mod this_thread {
 	}
 
 	pub fn cache_enable(enable: bool) -> Result<bool> {
-		// SAFETY: `thread.tcache.enabled` has C type `bool` (1 byte on non-MSVC).
+		// SAFETY: `thread.tcache.enabled` has C type `bool` (1 byte on
+		// non-MSVC).
 		unsafe { super::set::<u8>(mallctl!("thread.tcache.enabled"), enable.into()) }
 			.map(is_nonzero!())
 	}
 
 	pub fn is_cache_enabled() -> Result<bool> {
-		// SAFETY: `thread.tcache.enabled` has C type `bool` (1 byte on non-MSVC).
+		// SAFETY: `thread.tcache.enabled` has C type `bool` (1 byte on
+		// non-MSVC).
 		unsafe { super::get::<u8>(mallctl!("thread.tcache.enabled")) }.map(is_nonzero!())
 	}
 
@@ -317,11 +320,11 @@ pub mod this_thread {
 	/// # Safety
 	/// Caller must ensure `key` is an `arena.<i>.*` notification MIB
 	/// (`key.len() >= 2`).
-	// `arena_id()` returns this thread's own valid arena (< narenas < ARENA_LIMIT),
-	// so we skip `validate_arena_id()` to avoid locking `ctl_mtx` on hot paths like
-	// `decay()`.
 	unsafe fn notify(key: &Key) -> Result {
 		let mut key = key.clone();
+		// `arena_id()` returns this thread's own valid arena (< narenas <
+		// ARENA_LIMIT), so we skip `validate_arena_id()` to avoid locking
+		// `ctl_mtx` on hot paths like `decay()`.
 		key[1] = arena_id()?;
 		// SAFETY: Caller guarantees `key` is an `arena.<i>.*` notification MIB
 		// and `arena_id()` returns a valid arena index.
@@ -336,7 +339,8 @@ pub mod this_thread {
 		T: Copy + Debug,
 	{
 		let mut key = key.clone();
-		// `arena_id()` is already a valid arena index; skip `validate_arena_id()`.
+		// `arena_id()` is already a valid arena index; skip
+		// `validate_arena_id()`.
 		key[1] = arena_id()?;
 		// SAFETY: Caller guarantees `T` matches `key`.
 		unsafe { super::set(&key, val) }
@@ -350,7 +354,8 @@ pub mod this_thread {
 		T: Copy + Debug,
 	{
 		let mut key = key.clone();
-		// `arena_id()` is already a valid arena index; skip `validate_arena_id()`.
+		// `arena_id()` is already a valid arena index; skip
+		// `validate_arena_id()`.
 		key[1] = arena_id()?;
 		// SAFETY: Caller guarantees `T` matches `key`.
 		unsafe { super::get(&key) }
@@ -521,10 +526,11 @@ unsafe fn notify(key: &Key) -> Result {
 	}
 }
 
+/// Does not advance `epoch`; callers reading cached `stats.*` must call
+/// `inc_epoch()` explicitly.
+///
 /// # Safety
 /// Caller must ensure `T` matches the exact C type expected by `key`.
-// Does not advance `epoch`; callers reading cached `stats.*` must call
-// `inc_epoch()` explicitly.
 unsafe fn set<T>(key: &Key, val: T) -> Result<T>
 where
 	T: Copy + Debug,
@@ -632,14 +638,10 @@ mod tests {
 	}
 
 	#[test]
-	fn key_too_many_segments_returns_err() {
-		key("a.b.c.d.e.f.g.h.i").unwrap_err();
-	}
+	fn key_too_many_segments_returns_err() { key("a.b.c.d.e.f.g.h.i").unwrap_err(); }
 
 	#[test]
-	fn key_interior_nul_returns_err() {
-		key("a.b\0.c").unwrap_err();
-	}
+	fn key_interior_nul_returns_err() { key("a.b\0.c").unwrap_err(); }
 
 	#[test]
 	fn arena_index_bounds_rejected() {
@@ -672,11 +674,13 @@ mod tests {
 			return;
 		}
 
-		// SAFETY: `opt.dirty_decay_ms` and `opt.muzzy_decay_ms` have C type `ssize_t`.
-		let dirty = unsafe { get::<isize>(mallctl!("opt.dirty_decay_ms")) }
-			.expect("opt.dirty_decay_ms");
-		let muzzy = unsafe { get::<isize>(mallctl!("opt.muzzy_decay_ms")) }
-			.expect("opt.muzzy_decay_ms");
+		// SAFETY: `opt.dirty_decay_ms` and `opt.muzzy_decay_ms` have C type
+		// `ssize_t`.
+		let dirty =
+			unsafe { get::<isize>(mallctl!("opt.dirty_decay_ms")) }.expect("opt.dirty_decay_ms");
+		// SAFETY: Same as above
+		let muzzy =
+			unsafe { get::<isize>(mallctl!("opt.muzzy_decay_ms")) }.expect("opt.muzzy_decay_ms");
 		assert_eq!(dirty, 16_000, "expected malloc_conf dirty_decay_ms:16000");
 		assert_eq!(muzzy, 144_000, "expected malloc_conf muzzy_decay_ms:144000");
 	}
