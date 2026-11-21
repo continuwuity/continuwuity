@@ -2,7 +2,6 @@
 
 use std::{
 	any::Any,
-	cell::OnceCell,
 	ffi::{CStr, CString, c_char, c_void},
 	fmt::Debug,
 	panic::{self, AssertUnwindSafe},
@@ -208,7 +207,7 @@ unsafe extern "C" fn malloc_stats_cb(opaque: *mut c_void, msg: *const c_char) {
 }
 
 macro_rules! mallctl {
-	($name:expr_2021) => {{
+	($name:literal) => {{
 		static KEY: OnceLock<Key> = OnceLock::new();
 
 		KEY.get_or_init(|| key($name).expect("failed to translate name into mib key"))
@@ -217,12 +216,7 @@ macro_rules! mallctl {
 }
 
 pub mod this_thread {
-	use super::{Debug, Key, OnceCell, OnceLock, Result, is_nonzero, key, math};
-
-	thread_local! {
-		static ALLOCATED_BYTES: OnceCell<&'static u64> = const { OnceCell::new() };
-		static DEALLOCATED_BYTES: OnceCell<&'static u64> = const { OnceCell::new() };
-	}
+	use super::{Debug, Key, OnceLock, Result, is_nonzero, key, math};
 
 	pub fn trim() -> Result { decay().and_then(|()| purge()) }
 
@@ -277,13 +271,13 @@ pub mod this_thread {
 	#[inline]
 	#[must_use]
 	pub fn allocated() -> u64 {
-		*ALLOCATED_BYTES.with(|once| init_tls_cell(once, "thread.allocatedp"))
+		super::get(&mallctl!("thread.allocated")).unwrap_or_default()
 	}
 
 	#[inline]
 	#[must_use]
 	pub fn deallocated() -> u64 {
-		*DEALLOCATED_BYTES.with(|once| init_tls_cell(once, "thread.deallocatedp"))
+		super::get(&mallctl!("thread.deallocated")).unwrap_or_default()
 	}
 
 	fn notify(key: Key) -> Result { super::notify_by_arena(Some(arena_id()?), key) }
@@ -300,16 +294,6 @@ pub mod this_thread {
 		T: Copy + Debug,
 	{
 		super::get_by_arena(Some(arena_id()?), key)
-	}
-
-	fn init_tls_cell(cell: &OnceCell<&'static u64>, name: &str) -> &'static u64 {
-		cell.get_or_init(|| {
-			let ptr: *const u64 = super::get(&mallctl!(name)).expect("failed to obtain pointer");
-
-			// SAFETY: ptr points directly to the internal state of jemalloc for
-			// this thread
-			unsafe { ptr.as_ref() }.expect("pointer must not be null")
-		})
 	}
 }
 
