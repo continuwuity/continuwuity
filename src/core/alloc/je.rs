@@ -1,9 +1,11 @@
 //! jemalloc allocator
 
 use std::{
+	any::Any,
 	cell::OnceCell,
-	ffi::{CStr, c_char, c_void},
+	ffi::{CStr, CString, c_char, c_void},
 	fmt::Debug,
+	panic::{self, AssertUnwindSafe},
 	ptr,
 	sync::OnceLock,
 };
@@ -104,10 +106,9 @@ fn _static_initialization() {
 #[cfg(feature = "jemalloc_stats")]
 pub fn memory_usage() -> Option<String> {
 	let mibs = |input: usize| {
-		let kibs = input / 1024;
-		let kibs = u32::try_from(kibs).unwrap_or_default();
-		let kibs = f64::from(kibs);
-		kibs / 1024.0
+		let whole = u32::try_from(input / (1024 * 1024)).unwrap_or(u32::MAX);
+		let rem_kibs = u32::try_from((input / 1024) % 1024).unwrap_or_default();
+		f64::from(whole) + f64::from(rem_kibs) / 1024.0
 	};
 
 	let [allocated, active, mapped, metadata, resident, retained] =
@@ -145,42 +146,65 @@ pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> {
 #[cfg(not(feature = "jemalloc_stats"))]
 pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> { None }
 
+struct StatsPrintState {
+	buf: String,
+	max_len: usize,
+	panic: Option<Box<dyn Any + Send>>,
+}
+
 pub fn memory_stats(opts: &str) -> Option<String> {
 	const MAX_LENGTH: usize = 1_048_576;
 
-	let mut str = String::new();
-	let opaque = std::ptr::from_mut(&mut str).cast::<c_void>();
-	let opts_p: *const c_char = std::ffi::CString::new(opts)
-		.expect("cstring")
-		.into_raw()
-		.cast_const();
+	let opts = CString::new(opts).ok()?;
 
 	// Acquire the epoch; ensure latest stats are pulled in
 	acq_epoch().ok()?;
 
-	// SAFETY: calls malloc_stats_print() with our string instance which must
-	// remain in this frame. https://docs.rs/tikv-jemalloc-sys/latest/tikv_jemalloc_sys/fn.malloc_stats_print.html
-	unsafe { ffi::malloc_stats_print(Some(malloc_stats_cb), opaque, opts_p) };
+	let mut state = StatsPrintState {
+		buf: String::new(),
+		max_len: MAX_LENGTH,
+		panic: None,
+	};
+	let opaque = ptr::from_mut(&mut state).cast::<c_void>();
 
-	str.truncate(MAX_LENGTH);
+	// SAFETY: `state` and `opts` remain live in this frame for the duration of
+	// `malloc_stats_print()`, which invokes `malloc_stats_cb` synchronously.
+	unsafe { ffi::malloc_stats_print(Some(malloc_stats_cb), opaque, opts.as_ptr()) };
 
-	Some(str)
+	if let Some(payload) = state.panic {
+		panic::resume_unwind(payload);
+	}
+
+	Some(state.buf)
 }
 
 unsafe extern "C" fn malloc_stats_cb(opaque: *mut c_void, msg: *const c_char) {
-	// SAFETY: we have to trust the opaque points to our String
-	let res: &mut String = unsafe {
-		opaque
-			.cast::<String>()
-			.as_mut()
-			.expect("failed to cast void* to &mut String")
+	// SAFETY: `opaque` points to `StatsPrintState` on the caller's stack.
+	let Some(state) = (unsafe { opaque.cast::<StatsPrintState>().as_mut() }) else {
+		return;
 	};
 
-	// SAFETY: we have to trust the string is null terminated.
+	if state.panic.is_some() || msg.is_null() || state.buf.len() >= state.max_len {
+		return;
+	}
+
+	// SAFETY: jemalloc guarantees `msg` is a valid NUL-terminated C string.
 	let msg = unsafe { CStr::from_ptr(msg) };
 
-	let msg = String::from_utf8_lossy(msg.to_bytes());
-	res.push_str(msg.as_ref());
+	if let Err(err) = panic::catch_unwind(AssertUnwindSafe(|| {
+		let msg = String::from_utf8_lossy(msg.to_bytes());
+		let remaining = state.max_len.saturating_sub(state.buf.len());
+		if msg.len() <= remaining {
+			state.buf.push_str(msg.as_ref());
+		} else {
+			if let Some(prefix) = msg.get(..msg.floor_char_boundary(remaining)) {
+				state.buf.push_str(prefix);
+			}
+			state.max_len = state.buf.len();
+		}
+	})) {
+		state.panic = Some(err);
+	}
 }
 
 macro_rules! mallctl {
