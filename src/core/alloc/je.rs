@@ -390,7 +390,25 @@ where
 	get(&key)
 }
 
-fn notify(key: &Key) -> Result { xchg(key, ()) }
+fn notify(key: &Key) -> Result {
+	// SAFETY: jemalloc notification ctls require `oldp`, `oldlenp`, and `newp`
+	// to be NULL and `newlen` to be 0 (otherwise `EPERM` is returned).
+	let ret = unsafe {
+		ffi::mallctlbymib(
+			key.as_ptr(),
+			key.len(),
+			ptr::null_mut(),
+			ptr::null_mut(),
+			ptr::null_mut(),
+			0,
+		)
+	};
+	if ret == 0 {
+		Ok(())
+	} else {
+		Err(err!("mallctl: {}", std::io::Error::from_raw_os_error(ret)))
+	}
+}
 
 fn set<T>(key: &Key, val: T) -> Result<T>
 where
