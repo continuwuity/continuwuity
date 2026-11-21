@@ -1,10 +1,24 @@
 use std::sync::Arc;
 
-use rocksdb::ColumnFamily;
+use rocksdb::{BoundColumnFamily, ColumnFamily};
 
 use crate::Engine;
 
 pub(super) fn open(db: &Arc<Engine>, name: &str) -> Arc<ColumnFamily> {
+	// Compile-time guard: `BoundColumnFamily` and `ColumnFamily` are both
+	// `#[repr(Rust)]` in `rust-rocksdb`, so fail compilation if their size or
+	// alignment ever diverge.
+	const {
+		assert!(
+			size_of::<BoundColumnFamily<'_>>() == size_of::<ColumnFamily>(),
+			"BoundColumnFamily and ColumnFamily must have identical size"
+		);
+		assert!(
+			align_of::<BoundColumnFamily<'_>>() == align_of::<ColumnFamily>(),
+			"BoundColumnFamily and ColumnFamily must have identical alignment"
+		);
+	}
+
 	let bounded_arc = db.cf(name);
 	let bounded_ptr = Arc::into_raw(bounded_arc);
 	let cf_ptr = bounded_ptr.cast::<ColumnFamily>();

@@ -46,6 +46,10 @@ use crate::{Engine, watchers::Watchers};
 pub struct Map {
 	name: &'static str,
 	watchers: Watchers,
+	/// SAFETY / DROP ORDER: `cf` holds a lifetime-erased RocksDB column family
+	/// handle (see `open::open`) and MUST be declared before `db` so that the
+	/// handle is destroyed before `Engine` (and the underlying RocksDB `DB`)
+	/// can be dropped.
 	cf: Arc<ColumnFamily>,
 	db: Arc<Engine>,
 	read_options: ReadOptions,
