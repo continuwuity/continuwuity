@@ -522,15 +522,6 @@ features = ["resource"]
 version = "0.5.0"
 default-features = false
 
-[workspace.dependencies.hardened_malloc-rs]
-version = "0.1.2"
-default-features = false
-features = [
-    "static",
-    "gcc",
-    "light",
-]
-
 [workspace.dependencies.rustyline-async]
 version = "0.4.9"
 default-features = false
@@ -609,6 +600,9 @@ features = ["unstable-msc4188"]
 
 [workspace.dependencies.serde_urlencoded]
 version = "0.7.1"
+
+[workspace.dependencies.mimalloc]
+version = "0.1.52"
 
 #
 # Patches
