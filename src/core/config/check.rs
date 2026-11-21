@@ -43,13 +43,6 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
-	if cfg!(all(feature = "mimalloc", feature = "jemalloc", not(target_env = "msvc"))) {
-		warn!(
-			"mimalloc and jemalloc compile-time features are both enabled, this causes jemalloc \
-			 to be used."
-		);
-	}
-
 	if cfg!(not(unix)) && config.unix_socket_path.is_some() {
 		return Err!(Config(
 			"unix_socket_path",

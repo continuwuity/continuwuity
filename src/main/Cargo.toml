@@ -112,10 +112,6 @@ jemalloc = [
     "conduwuit-core/jemalloc",
     "conduwuit-service/jemalloc",
 ]
-# Sets Rust's #[global_allocator] to mimalloc (C/C++ libraries such as RocksDB
-# still use system libc malloc). On non-MSVC targets, `jemalloc` takes
-# precedence if both are enabled, so build with `--no-default-features` and
-# omit `jemalloc`/`standard` to use mimalloc.
 mimalloc = [
     "conduwuit-core/mimalloc",
 ]

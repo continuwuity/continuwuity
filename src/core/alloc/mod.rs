@@ -9,6 +9,8 @@ pub(crate) use je::metric;
 pub use je::{memory_stats, memory_usage, memory_usage_stats, trim};
 
 // mimalloc
+#[cfg(all(feature = "mimalloc", feature = "jemalloc", not(target_env = "msvc")))]
+compile_error!("the `mimalloc` and `jemalloc` features are mutually exclusive");
 #[cfg(all(feature = "mimalloc", any(target_env = "msvc", not(feature = "jemalloc"))))]
 pub mod mimalloc;
 #[cfg(all(feature = "mimalloc", any(target_env = "msvc", not(feature = "jemalloc"))))]
