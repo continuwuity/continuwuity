@@ -175,7 +175,7 @@ impl crate::Service for Service {
 					restarts.push(sleep(delay).map(move |()| shard));
 				},
 				Some(shard) = restarts.next() => {
-					if !self.channels[shard].1.is_closed() {
+					if !self.channels[shard].1.is_closed() && self.server.running() {
 						started[shard] = Instant::now();
 						self.spawn_sender(&mut senders, &mut shards, shard, true);
 					}
