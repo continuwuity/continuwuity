@@ -8,7 +8,11 @@ use ruma::api::error::ErrorKind;
 
 pub(crate) fn build(services: &Arc<Services>) -> (Router, Guard) {
 	let router = Router::<state::State>::new();
-	let (state, guard) = state::create(services.clone());
+	// SAFETY: `guard` is returned alongside `router` and held in `serve()`
+	// until the HTTP server has finished serving all requests and dropped
+	// `router`, ensuring no `State` copy can be dereferenced after `Services`
+	// is dropped.
+	let (state, guard) = unsafe { state::create(services.clone()) };
 	let router = conduwuit_api::router::build(router, state)
 		.merge(conduwuit_web::build(services))
 		.fallback(not_found)

@@ -11,7 +11,15 @@ pub struct Guard {
 	services: Arc<Services>,
 }
 
-pub fn create(services: Arc<Services>) -> (State, Guard) {
+/// Create a raw-pointer `State` handle paired with a `Guard` that keeps
+/// `Services` alive.
+///
+/// # Safety
+/// `State` is `Copy` and dereferences its raw pointer without reference
+/// counting. The caller must ensure that no `State` (nor any copy of it) is
+/// dereferenced after `Guard` and all other `Arc<Services>` clones have been
+/// dropped.
+pub unsafe fn create(services: Arc<Services>) -> (State, Guard) {
 	let state = State {
 		services: Arc::into_raw(services.clone()),
 	};
