@@ -4,6 +4,8 @@ use std::{
 	cell::OnceCell,
 	ffi::{CStr, c_char, c_void},
 	fmt::Debug,
+	ptr,
+	sync::OnceLock,
 };
 
 use arrayvec::ArrayVec;
@@ -83,8 +85,19 @@ const KEY_SEGS: usize = 8;
 
 #[ctor::ctor(unsafe)]
 fn _static_initialization() {
-	acq_epoch().expect("pre-initialization of jemalloc failed");
-	acq_epoch().expect("pre-initialization of jemalloc failed");
+	let mut epoch: u64 = 0;
+	let mut len = size_of::<u64>();
+	// SAFETY: Pre-initialize jemalloc before main() without touching Rust TLS
+	// or unwinding across the constructor boundary.
+	unsafe {
+		ffi::mallctl(
+			c"epoch".as_ptr(),
+			ptr::from_mut(&mut epoch).cast::<c_void>(),
+			&raw mut len,
+			ptr::null_mut(),
+			0,
+		);
+	}
 }
 
 #[must_use]
@@ -172,19 +185,15 @@ unsafe extern "C" fn malloc_stats_cb(opaque: *mut c_void, msg: *const c_char) {
 
 macro_rules! mallctl {
 	($name:expr_2021) => {{
-		thread_local! {
-			static KEY: OnceCell<Key> = OnceCell::default();
-		};
+		static KEY: OnceLock<Key> = OnceLock::new();
 
-		KEY.with(|once| {
-			once.get_or_init(move || key($name).expect("failed to translate name into mib key"))
-				.clone()
-		})
+		KEY.get_or_init(|| key($name).expect("failed to translate name into mib key"))
+			.clone()
 	}};
 }
 
 pub mod this_thread {
-	use super::{Debug, Key, OnceCell, Result, is_nonzero, key, math};
+	use super::{Debug, Key, OnceCell, OnceLock, Result, is_nonzero, key, math};
 
 	thread_local! {
 		static ALLOCATED_BYTES: OnceCell<&'static u64> = const { OnceCell::new() };
@@ -397,7 +406,6 @@ where
 	T: Copy + Debug,
 {
 	acq_epoch()?;
-	acq_epoch()?;
 
 	// SAFETY: T must be perfectly valid to receive value.
 	unsafe { mallctl::raw::read_mib(key.as_slice()) }.map_err(map_err)
@@ -421,6 +429,9 @@ fn key(name: &str) -> Result<Key> {
 	// tikv asserts the output buffer length is tight to the number of required
 	// mibs so we slice that down here.
 	let segs = name.chars().filter(is_equal_to!(&'.')).count().try_add(1)?;
+	if segs > KEY_SEGS {
+		return Err(err!("mallctl: key has too many segments ({segs} > {KEY_SEGS})"));
+	}
 
 	let name = self::name(name)?;
 	let mut buf = [0_usize; KEY_SEGS];
@@ -430,6 +441,10 @@ fn key(name: &str) -> Result<Key> {
 }
 
 fn name(name: &str) -> Result<Name> {
+	if name.as_bytes().contains(&0) {
+		return Err(err!("mallctl: key contains interior NUL byte"));
+	}
+
 	let mut buf = Name::new();
 	buf.try_extend_from_slice(name.as_bytes())?;
 	buf.try_extend_from_slice(b"\0")?;
