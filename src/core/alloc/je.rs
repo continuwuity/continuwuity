@@ -17,20 +17,54 @@ use crate::{
 };
 
 #[cfg(feature = "jemalloc_conf")]
-#[unsafe(no_mangle)]
-pub static malloc_conf: &[u8] = const_str::concat_bytes!(
+#[repr(transparent)]
+struct MallocConf(*const c_char);
+
+// SAFETY: MallocConf points to static immutable NUL-terminated bytes.
+#[cfg(feature = "jemalloc_conf")]
+unsafe impl Sync for MallocConf {}
+
+#[cfg(feature = "jemalloc_conf")]
+const MALLOC_CONF_BYTES: &[u8] = const_str::concat_bytes!(
 	"lg_extent_max_active_fit:4",
 	",oversize_threshold:16777216",
 	",tcache_max:2097152",
 	",dirty_decay_ms:16000",
 	",muzzy_decay_ms:144000",
-	",percpu_arena:percpu",
-	",metadata_thp:always",
-	",background_thread:true",
-	",max_background_threads:-1",
+	MALLOC_CONF_PLATFORM,
 	MALLOC_CONF_PROF,
 	0
 );
+
+#[cfg(all(feature = "jemalloc_conf", target_os = "linux"))]
+const MALLOC_CONF_PLATFORM: &str = ",percpu_arena:percpu,metadata_thp:always,background_thread:true";
+#[cfg(all(feature = "jemalloc_conf", not(target_os = "linux")))]
+const MALLOC_CONF_PLATFORM: &str = "";
+
+// Targets match `NO_UNPREFIXED_MALLOC_TARGETS` in `tikv-jemalloc-sys` when
+// `unprefixed_malloc_on_supported_platforms` is enabled.
+#[cfg(feature = "jemalloc_conf")]
+#[used]
+#[allow(non_upper_case_globals)]
+#[cfg_attr(
+	any(
+		target_vendor = "apple",
+		target_env = "musl",
+		target_os = "android",
+		target_os = "dragonfly",
+	),
+	unsafe(export_name = "_rjem_malloc_conf")
+)]
+#[cfg_attr(
+	not(any(
+		target_vendor = "apple",
+		target_env = "musl",
+		target_os = "android",
+		target_os = "dragonfly",
+	)),
+	unsafe(no_mangle)
+)]
+static malloc_conf: MallocConf = MallocConf(MALLOC_CONF_BYTES.as_ptr().cast());
 
 #[cfg(all(feature = "jemalloc_conf", feature = "jemalloc_prof"))]
 const MALLOC_CONF_PROF: &str = ",prof_active:false";
