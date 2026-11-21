@@ -209,7 +209,6 @@ macro_rules! mallctl {
 		static KEY: OnceLock<Key> = OnceLock::new();
 
 		KEY.get_or_init(|| key($name).expect("failed to translate name into mib key"))
-			.clone()
 	}};
 }
 
@@ -230,12 +229,12 @@ pub mod this_thread {
 
 	pub fn idle() -> Result {
 		// SAFETY: `thread.idle` is a non-indexed notification ctl.
-		unsafe { super::notify(&mallctl!("thread.idle")) }
+		unsafe { super::notify(mallctl!("thread.idle")) }
 	}
 
 	pub fn flush() -> Result {
 		// SAFETY: `thread.tcache.flush` is a non-indexed notification ctl.
-		unsafe { super::notify(&mallctl!("thread.tcache.flush")) }
+		unsafe { super::notify(mallctl!("thread.tcache.flush")) }
 	}
 
 	pub fn set_muzzy_decay(decay_ms: isize) -> Result<isize> {
@@ -260,59 +259,59 @@ pub mod this_thread {
 
 	pub fn cache_enable(enable: bool) -> Result<bool> {
 		// SAFETY: `thread.tcache.enabled` has C type `bool` (1 byte on non-MSVC).
-		unsafe { super::set::<u8>(&mallctl!("thread.tcache.enabled"), enable.into()) }
+		unsafe { super::set::<u8>(mallctl!("thread.tcache.enabled"), enable.into()) }
 			.map(is_nonzero!())
 	}
 
 	pub fn is_cache_enabled() -> Result<bool> {
 		// SAFETY: `thread.tcache.enabled` has C type `bool` (1 byte on non-MSVC).
-		unsafe { super::get::<u8>(&mallctl!("thread.tcache.enabled")) }.map(is_nonzero!())
+		unsafe { super::get::<u8>(mallctl!("thread.tcache.enabled")) }.map(is_nonzero!())
 	}
 
 	pub fn set_arena(id: usize) -> Result<usize> {
 		// SAFETY: `thread.arena` has C type `unsigned`.
-		unsafe { super::set::<c_uint>(&mallctl!("thread.arena"), id.try_into()?) }
+		unsafe { super::set::<c_uint>(mallctl!("thread.arena"), id.try_into()?) }
 			.and_then(math::try_into)
 	}
 
 	pub fn arena_id() -> Result<usize> {
 		// SAFETY: `thread.arena` has C type `unsigned`.
-		unsafe { super::get::<c_uint>(&mallctl!("thread.arena")) }.and_then(math::try_into)
+		unsafe { super::get::<c_uint>(mallctl!("thread.arena")) }.and_then(math::try_into)
 	}
 
 	pub fn prof_enable(enable: bool) -> Result<bool> {
 		// SAFETY: `thread.prof.active` has C type `bool` (1 byte on non-MSVC).
-		unsafe { super::set::<u8>(&mallctl!("thread.prof.active"), enable.into()) }
+		unsafe { super::set::<u8>(mallctl!("thread.prof.active"), enable.into()) }
 			.map(is_nonzero!())
 	}
 
 	pub fn is_prof_enabled() -> Result<bool> {
 		// SAFETY: `thread.prof.active` has C type `bool` (1 byte on non-MSVC).
-		unsafe { super::get::<u8>(&mallctl!("thread.prof.active")) }.map(is_nonzero!())
+		unsafe { super::get::<u8>(mallctl!("thread.prof.active")) }.map(is_nonzero!())
 	}
 
 	pub fn reset_peak() -> Result {
 		// SAFETY: `thread.peak.reset` is a non-indexed notification ctl.
-		unsafe { super::notify(&mallctl!("thread.peak.reset")) }
+		unsafe { super::notify(mallctl!("thread.peak.reset")) }
 	}
 
 	pub fn peak() -> Result<u64> {
 		// SAFETY: `thread.peak.read` has C type `uint64_t`.
-		unsafe { super::get(&mallctl!("thread.peak.read")) }
+		unsafe { super::get(mallctl!("thread.peak.read")) }
 	}
 
 	#[inline]
 	#[must_use]
 	pub fn allocated() -> u64 {
 		// SAFETY: `thread.allocated` has C type `uint64_t`.
-		unsafe { super::get(&mallctl!("thread.allocated")) }.unwrap_or_default()
+		unsafe { super::get(mallctl!("thread.allocated")) }.unwrap_or_default()
 	}
 
 	#[inline]
 	#[must_use]
 	pub fn deallocated() -> u64 {
 		// SAFETY: `thread.deallocated` has C type `uint64_t`.
-		unsafe { super::get(&mallctl!("thread.deallocated")) }.unwrap_or_default()
+		unsafe { super::get(mallctl!("thread.deallocated")) }.unwrap_or_default()
 	}
 
 	/// # Safety
@@ -321,7 +320,8 @@ pub mod this_thread {
 	// `arena_id()` returns this thread's own valid arena (< narenas < ARENA_LIMIT),
 	// so we skip `validate_arena_id()` to avoid locking `ctl_mtx` on hot paths like
 	// `decay()`.
-	unsafe fn notify(mut key: Key) -> Result {
+	unsafe fn notify(key: &Key) -> Result {
+		let mut key = key.clone();
 		key[1] = arena_id()?;
 		// SAFETY: Caller guarantees `key` is an `arena.<i>.*` notification MIB
 		// and `arena_id()` returns a valid arena index.
@@ -331,10 +331,11 @@ pub mod this_thread {
 	/// # Safety
 	/// Caller must ensure `key` is an `arena.<i>.*` MIB and `T` matches its
 	/// exact C type.
-	unsafe fn set<T>(mut key: Key, val: T) -> Result<T>
+	unsafe fn set<T>(key: &Key, val: T) -> Result<T>
 	where
 		T: Copy + Debug,
 	{
+		let mut key = key.clone();
 		// `arena_id()` is already a valid arena index; skip `validate_arena_id()`.
 		key[1] = arena_id()?;
 		// SAFETY: Caller guarantees `T` matches `key`.
@@ -344,10 +345,11 @@ pub mod this_thread {
 	/// # Safety
 	/// Caller must ensure `key` is an `arena.<i>.*` MIB and `T` matches its
 	/// exact C type.
-	unsafe fn get<T>(mut key: Key) -> Result<T>
+	unsafe fn get<T>(key: &Key) -> Result<T>
 	where
 		T: Copy + Debug,
 	{
+		let mut key = key.clone();
 		// `arena_id()` is already a valid arena index; skip `validate_arena_id()`.
 		key[1] = arena_id()?;
 		// SAFETY: Caller guarantees `T` matches `key`.
@@ -357,22 +359,22 @@ pub mod this_thread {
 
 pub fn stats_reset() -> Result {
 	// SAFETY: `stats.mutexes.reset` is a non-indexed notification ctl.
-	unsafe { notify(&mallctl!("stats.mutexes.reset")) }
+	unsafe { notify(mallctl!("stats.mutexes.reset")) }
 }
 
 pub fn prof_reset() -> Result {
 	// SAFETY: `prof.reset` is a non-indexed notification ctl.
-	unsafe { notify(&mallctl!("prof.reset")) }
+	unsafe { notify(mallctl!("prof.reset")) }
 }
 
 pub fn prof_enable(enable: bool) -> Result<bool> {
 	// SAFETY: `prof.active` has C type `bool` (1 byte on non-MSVC).
-	unsafe { set::<u8>(&mallctl!("prof.active"), enable.into()) }.map(is_nonzero!())
+	unsafe { set::<u8>(mallctl!("prof.active"), enable.into()) }.map(is_nonzero!())
 }
 
 pub fn is_prof_enabled() -> Result<bool> {
 	// SAFETY: `prof.active` has C type `bool` (1 byte on non-MSVC).
-	unsafe { get::<u8>(&mallctl!("prof.active")) }.map(is_nonzero!())
+	unsafe { get::<u8>(mallctl!("prof.active")) }.map(is_nonzero!())
 }
 
 pub fn trim<I: Into<Option<usize>> + Copy>(arena: I) -> Result {
@@ -396,7 +398,7 @@ pub fn set_muzzy_decay<I: Into<Option<usize>>>(arena: I, decay_ms: isize) -> Res
 			set_by_arena(arena, mallctl!("arena.0.muzzy_decay_ms"), decay_ms)
 		},
 		// SAFETY: `arenas.muzzy_decay_ms` has C type `ssize_t`.
-		| _ => unsafe { set(&mallctl!("arenas.muzzy_decay_ms"), decay_ms) },
+		| _ => unsafe { set(mallctl!("arenas.muzzy_decay_ms"), decay_ms) },
 	}
 }
 
@@ -407,13 +409,13 @@ pub fn set_dirty_decay<I: Into<Option<usize>>>(arena: I, decay_ms: isize) -> Res
 			set_by_arena(arena, mallctl!("arena.0.dirty_decay_ms"), decay_ms)
 		},
 		// SAFETY: `arenas.dirty_decay_ms` has C type `ssize_t`.
-		| _ => unsafe { set(&mallctl!("arenas.dirty_decay_ms"), decay_ms) },
+		| _ => unsafe { set(mallctl!("arenas.dirty_decay_ms"), decay_ms) },
 	}
 }
 
 pub fn background_thread_enable(enable: bool) -> Result<bool> {
 	// SAFETY: `background_thread` has C type `bool` (1 byte on non-MSVC).
-	unsafe { set::<u8>(&mallctl!("background_thread"), enable.into()) }.map(is_nonzero!())
+	unsafe { set::<u8>(mallctl!("background_thread"), enable.into()) }.map(is_nonzero!())
 }
 
 #[inline]
@@ -430,7 +432,7 @@ pub fn is_phycpu_arena() -> bool { percpu_arenas().is_ok_and(is_equal_to!("phycp
 
 pub fn percpu_arenas() -> Result<&'static str> {
 	// SAFETY: `opt.percpu_arena` has C type `const char *`.
-	let ptr = unsafe { get::<*const c_char>(&mallctl!("opt.percpu_arena")) }?;
+	let ptr = unsafe { get::<*const c_char>(mallctl!("opt.percpu_arena")) }?;
 	if ptr.is_null() {
 		return Err(err!("mallctl: opt.percpu_arena returned NULL"));
 	}
@@ -443,17 +445,17 @@ pub fn percpu_arenas() -> Result<&'static str> {
 
 pub fn arenas() -> Result<usize> {
 	// SAFETY: `arenas.narenas` has C type `unsigned`.
-	unsafe { get::<c_uint>(&mallctl!("arenas.narenas")) }.and_then(math::try_into)
+	unsafe { get::<c_uint>(mallctl!("arenas.narenas")) }.and_then(math::try_into)
 }
 
 pub fn inc_epoch() -> Result<u64> {
 	// SAFETY: `epoch` has C type `uint64_t`.
-	unsafe { xchg(&mallctl!("epoch"), 1_u64) }
+	unsafe { xchg(mallctl!("epoch"), 1_u64) }
 }
 
 pub fn acq_epoch() -> Result<u64> {
 	// SAFETY: `epoch` has C type `uint64_t`.
-	unsafe { get(&mallctl!("epoch")) }
+	unsafe { get(mallctl!("epoch")) }
 }
 
 fn validate_arena_id(id: usize, allow_all: bool) -> Result<usize> {
@@ -472,7 +474,8 @@ fn validate_arena_id(id: usize, allow_all: bool) -> Result<usize> {
 /// # Safety
 /// Caller must ensure `key` is an `arena.<i>.*` notification MIB
 /// (`key.len() >= 2`).
-unsafe fn notify_by_arena(id: Option<usize>, mut key: Key) -> Result {
+unsafe fn notify_by_arena(id: Option<usize>, key: &Key) -> Result {
+	let mut key = key.clone();
 	key[1] = match id {
 		| Some(id) => validate_arena_id(id, true)?,
 		| None => ARENAS_ALL,
@@ -485,10 +488,11 @@ unsafe fn notify_by_arena(id: Option<usize>, mut key: Key) -> Result {
 /// # Safety
 /// Caller must ensure `key` is an `arena.<i>.*` MIB (`key.len() >= 2`) and `T`
 /// matches its exact C type.
-unsafe fn set_by_arena<T>(id: usize, mut key: Key, val: T) -> Result<T>
+unsafe fn set_by_arena<T>(id: usize, key: &Key, val: T) -> Result<T>
 where
 	T: Copy + Debug,
 {
+	let mut key = key.clone();
 	key[1] = validate_arena_id(id, false)?;
 	// SAFETY: Caller guarantees `T` matches `key`.
 	unsafe { set(&key, val) }
