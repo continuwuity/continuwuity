@@ -48,7 +48,7 @@ jobs:
 
       - name: Build Rspress documentation
         env:
-          SITE_PATH: ${{ github.ref != 'refs/heads/main' && format('/pr/{0}/', '${{ forgejo.event.number }}') || '/' }}
+          SITE_PATH: ${{ github.ref != 'refs/heads/main' && format('/{0}/', '${{ forgejo.event.number }}') || '/' }}
         run: npm run docs:build
 
       - name: Install Wrangler
@@ -63,16 +63,20 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: pages deploy ./doc_build --branch="main" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}"
 
+      - name: Install git-pages-cli (Preview)
+        if: github.ref != 'refs/heads/main'
+        run: go install codeberg.org/git-pages/git-pages-cli@latest
+
       - name: Deploy to Grebedoc (Preview)
         if: github.ref != 'refs/heads/main'
-        uses: actions/git-pages@v2
-        with:
-          site: https://preview.continuwuity.org
-          path: "pr/${{ forgejo.event.number }}"
-          server: grebedoc.dev
-          token: ${{ forgejo.token }}
-          source: doc_build/
-          strict: true
-          pretty-urls: true
-          expires: 14
-          comment: ${{ forgejo.sha }}
+        # Needs http for at least first deploy per docs:
+        # https://codeberg.org/git-pages/git-pages-cli#forge-authorization
+        # (ctrl-F for "it is not possible to publish a site")
+        run: |
+          ~/go/bin/git-pages-cli https://preview.continuwuity.org \
+          --password "${{ secrets.GREBEDOC_PASSWORD }}" \
+          --upload-dir doc_build \
+          --path "${{ forgejo.event.number }}" \
+          --expires 14 \
+          --comment "${{ forgejo.sha }}" \
+          --verbose
