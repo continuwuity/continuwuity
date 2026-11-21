@@ -15,7 +15,7 @@ use tikv_jemalloc_sys as ffi;
 use tikv_jemallocator as jemalloc;
 
 use crate::{
-	Result, SyncRwLock, err, is_equal_to, is_nonzero,
+	Result, err, is_equal_to, is_nonzero,
 	utils::{math, math::Tried},
 };
 
@@ -76,7 +76,6 @@ const MALLOC_CONF_PROF: &str = "";
 
 #[global_allocator]
 static JEMALLOC: jemalloc::Jemalloc = jemalloc::Jemalloc;
-static CONTROL: SyncRwLock<()> = SyncRwLock::new(());
 
 type Name = ArrayVec<u8, NAME_MAX>;
 type Key = ArrayVec<usize, KEY_SEGS>;
@@ -130,8 +129,8 @@ pub fn memory_usage() -> Option<String> { None }
 pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> {
 	use mallctl::stats;
 
-	// Acquire the epoch; ensure latest stats are pulled in
-	acq_epoch().ok()?;
+	// Advance the epoch; ensure latest stats are pulled in
+	inc_epoch().ok()?;
 
 	Some([
 		("allocated", stats::allocated::read().unwrap_or_default()),
@@ -157,9 +156,6 @@ pub fn memory_stats(opts: &str) -> Option<String> {
 	const MAX_LENGTH: usize = 1_048_576;
 
 	let opts = CString::new(opts).ok()?;
-
-	// Acquire the epoch; ensure latest stats are pulled in
-	acq_epoch().ok()?;
 
 	let mut state = StatsPrintState {
 		buf: String::new(),
@@ -457,7 +453,7 @@ pub fn inc_epoch() -> Result<u64> {
 
 pub fn acq_epoch() -> Result<u64> {
 	// SAFETY: `epoch` has C type `uint64_t`.
-	unsafe { xchg(&mallctl!("epoch"), 0_u64) }
+	unsafe { get(&mallctl!("epoch")) }
 }
 
 fn validate_arena_id(id: usize, allow_all: bool) -> Result<usize> {
@@ -523,16 +519,14 @@ unsafe fn notify(key: &Key) -> Result {
 
 /// # Safety
 /// Caller must ensure `T` matches the exact C type expected by `key`.
+// Does not advance `epoch`; callers reading cached `stats.*` must call
+// `inc_epoch()` explicitly.
 unsafe fn set<T>(key: &Key, val: T) -> Result<T>
 where
 	T: Copy + Debug,
 {
-	let _lock = CONTROL.write();
 	// SAFETY: Caller guarantees `T` matches `key`.
-	let res = unsafe { xchg(key, val) }?;
-	inc_epoch()?;
-
-	Ok(res)
+	unsafe { xchg(key, val) }
 }
 
 /// # Safety
@@ -547,8 +541,6 @@ unsafe fn get<T>(key: &Key) -> Result<T>
 where
 	T: Copy + Debug,
 {
-	acq_epoch()?;
-
 	// SAFETY: Caller guarantees `T` matches the C type returned for `key`.
 	unsafe { mallctl::raw::read_mib(key.as_slice()) }.map_err(map_err)
 }
