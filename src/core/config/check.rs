@@ -5,7 +5,7 @@ use figment::Figment;
 use ruma::{OwnedServerName, events::room::server_acl::RoomServerAclEventContent};
 
 use super::DEPRECATED_KEYS;
-use crate::{Config, Err, Result, Server, debug, debug_info, debug_warn, error, warn};
+use crate::{Config, Err, Result, Server, debug, debug_info, error, warn};
 
 /// Performs check() with additional checks specific to reloading old config
 /// with new config.
@@ -44,7 +44,7 @@ pub fn check(config: &Config) -> Result {
 	}
 
 	if cfg!(all(feature = "mimalloc", feature = "jemalloc", not(target_env = "msvc"))) {
-		debug_warn!(
+		warn!(
 			"mimalloc and jemalloc compile-time features are both enabled, this causes jemalloc \
 			 to be used."
 		);
