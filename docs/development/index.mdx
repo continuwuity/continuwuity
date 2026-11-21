@@ -84,8 +84,9 @@ All forked dependencies are maintained under the
 - [rocksdb][continuwuation-rocksdb] - Fork of [facebook/rocksdb][rocksdb] via
   [`@zaidoon1`][8] with liburing build fixes and GCC debug build fixes
 - [jemallocator][continuwuation-jemallocator] - Fork of
-  [tikv/jemallocator][jemallocator] fixing musl builds, suspicious code, and
-  adding support for redzones in Valgrind
+  [tikv/jemallocator][jemallocator] fixing musl builds and using jemalloc's
+  `*x` APIs consistently in `GlobalAlloc` to avoid interposer/Valgrind
+  mismatches
 - [rustyline-async][continuwuation-rustyline-async] - Fork of
   [zyansheep/rustyline-async][rustyline-async] with tab completion callback and
   `CTRL+\` signal quit event for Continuwuity console CLI

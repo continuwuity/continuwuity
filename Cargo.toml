@@ -407,7 +407,7 @@ features = [
 
 [workspace.dependencies.rust-rocksdb]
 git = "https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1"
-rev = "6021299f3e0e9455dc3f2e39c65e1dc217be8903"
+rev = "85ded20348e3dab902c239967075795e9c6d101b"
 default-features = false
 features = [
     "multi-threaded-cf",
@@ -490,7 +490,7 @@ version = "0.49.5"
 # jemalloc usage
 [workspace.dependencies.tikv-jemalloc-sys]
 git = "https://forgejo.ellis.link/continuwuation/jemallocator"
-rev = "ac4d4861b335b199f812807996e8c9166961041a"
+rev = "46e7821917b06636cdb5b203d312799970eaea92"
 default-features = false
 features = [
     "background_threads_runtime_support",
@@ -498,7 +498,7 @@ features = [
 ]
 [workspace.dependencies.tikv-jemallocator]
 git = "https://forgejo.ellis.link/continuwuation/jemallocator"
-rev = "ac4d4861b335b199f812807996e8c9166961041a"
+rev = "46e7821917b06636cdb5b203d312799970eaea92"
 default-features = false
 features = [
     "background_threads_runtime_support",
@@ -506,7 +506,7 @@ features = [
 ]
 [workspace.dependencies.tikv-jemalloc-ctl]
 git = "https://forgejo.ellis.link/continuwuation/jemallocator"
-rev = "ac4d4861b335b199f812807996e8c9166961041a"
+rev = "46e7821917b06636cdb5b203d312799970eaea92"
 default-features = false
 features = ["use_std"]
 
