@@ -54,8 +54,14 @@ pub(crate) struct Get {
 /// Note: only initial seek is supported at this time on the assumption rocksdb
 /// prefetching prevents mid-iteration polls from blocking on I/O.
 pub(crate) struct Seek {
-	pub(crate) map: Arc<Map>,
+	/// SAFETY / DROP ORDER: `state` wraps a RocksDB
+	/// `DBRawIteratorWithThreadMode` referencing `map.db.db` whose lifetime has
+	/// been erased to `'static`. `state` MUST be declared before `map` so the
+	/// iterator is destroyed before `map` (and potentially the last
+	/// `Arc<Engine>`) can be dropped if `Seek` is dropped early (e.g. on
+	/// cancellation or queue closure).
 	pub(crate) state: stream::State<'static>,
+	pub(crate) map: Arc<Map>,
 	pub(crate) dir: Direction,
 	pub(crate) key: Option<KeyBuf>,
 	pub(crate) res: Option<ResultSender<stream::State<'static>>>,
@@ -416,24 +422,30 @@ impl Drop for Pool {
 }
 
 fn into_send_get(result: BatchResult<'_>) -> BatchResult<'static> {
-	// SAFETY: Necessary to send the Handle (rust_rocksdb::PinnableSlice)
-	// through the channel. The lifetime on the handle is a device by
-	// rust-rocksdb to associate a database lifetime with its assets. The
-	// Handle must be dropped before the database is dropped.
+	// SAFETY: Necessary to send `Handle` (which wraps
+	// `rocksdb::DBPinnableSlice`) through the oneshot channel. The lifetime on
+	// `Handle` ties it to the RocksDB `DB` instance; callers of `execute_get`
+	// borrow `&self.db.pool` (which is owned by `Engine`), ensuring the
+	// received `BatchResult<'_>` cannot outlive the database.
 	unsafe { std::mem::transmute(result) }
 }
 
 fn into_recv_get<'a>(result: BatchResult<'static>) -> BatchResult<'a> {
-	// SAFETY: This is to receive the Handle from the channel.
+	// SAFETY: Shrinking the erased `'static` lifetime back to `'a` (borrowed
+	// from `&self.db.pool`). `SmallVec<A>` is invariant over `A`, so this
+	// cannot be done via implicit covariance.
 	unsafe { std::mem::transmute(result) }
 }
 
 pub(crate) fn into_send_seek(result: stream::State<'_>) -> stream::State<'static> {
-	// SAFETY: Necessary to send the State through the channel; see above.
+	// SAFETY: Necessary to send `stream::State` through the pool channel.
+	// While in flight on the queue, `Seek` owns an `Arc<Map>` (declared after
+	// `state` so `state` drops first on early cancellation); once received back
+	// from `execute_iter`, the lifetime is shrunk via `into_recv_seek` to the
+	// caller's borrow of `&self.db.pool` (and `&'a Arc<Map>`), ensuring the
+	// returned `stream::State<'_>` cannot outlive the database.
 	unsafe { std::mem::transmute(result) }
 }
 
-fn into_recv_seek(result: stream::State<'static>) -> stream::State<'static> {
-	// SAFETY: This is to receive the State from the channel; see above.
-	unsafe { std::mem::transmute(result) }
-}
+#[inline]
+const fn into_recv_seek<'a>(result: stream::State<'static>) -> stream::State<'a> { result }
