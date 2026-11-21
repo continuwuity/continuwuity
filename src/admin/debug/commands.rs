@@ -1007,7 +1007,7 @@ impl crate::Context<'_> {
 	pub(super) async fn memory_stats(&self, opts: Option<String>) -> Result {
 		const OPTS: &str = "abcdefghijklmnopqrstuvwxyz";
 
-		let opts: String = OPTS
+		let mut mapped_opts: String = OPTS
 			.chars()
 			.filter(|&c| {
 				let allow_any = opts.as_ref().is_some_and(|opts| opts == "*");
@@ -1018,7 +1018,11 @@ impl crate::Context<'_> {
 			})
 			.collect();
 
-		let stats = conduwuit::alloc::memory_stats(&opts).unwrap_or_default();
+		if opts.as_ref().is_some_and(|opts| opts.contains('J')) {
+			mapped_opts.push('J');
+		}
+
+		let stats = conduwuit::alloc::memory_stats(&mapped_opts).unwrap_or_default();
 
 		self.write_str("```\n").await?;
 		self.write_str(&stats).await?;

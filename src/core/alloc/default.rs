@@ -1,5 +1,9 @@
 //! Default allocator with no special features
 
+use arrayvec::ArrayVec;
+
+pub(crate) fn metric() -> Option<(&'static str, &'static str)> { None }
+
 /// Always returns Ok
 pub fn trim<I: Into<Option<usize>>>(_: I) -> crate::Result { Ok(()) }
 
@@ -12,4 +16,4 @@ pub fn memory_stats(_opts: &str) -> Option<String> { None }
 pub fn memory_usage() -> Option<String> { None }
 
 #[must_use]
-pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> { None }
+pub fn memory_usage_stats() -> Option<ArrayVec<(&'static str, usize), 6>> { None }

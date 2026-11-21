@@ -196,9 +196,13 @@ fn register_process(meter: &Meter) {
 }
 
 fn register_allocator(meter: &Meter) {
+	let Some((name, description)) = crate::alloc::metric() else {
+		return;
+	};
+
 	meter
-		.u64_observable_gauge("continuwuity.jemalloc.memory")
-		.with_description("jemalloc memory statistics, when built with jemalloc_stats")
+		.u64_observable_gauge(name)
+		.with_description(description)
 		.with_unit("By")
 		.with_callback(|observer| {
 			for (kind, bytes) in crate::alloc::memory_usage_stats().into_iter().flatten() {
