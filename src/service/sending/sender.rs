@@ -316,6 +316,7 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
+		let delivering = restarted || self.server.config.startup_netburst;
 		let keep =
 			usize::try_from(self.server.config.startup_netburst_keep).unwrap_or(usize::MAX);
 		let mut txns = HashMap::<Destination, Vec<SendingEvent>>::new();
@@ -330,7 +331,7 @@ impl Service {
 			let over_budget =
 				self.server.config.startup_netburst_keep >= 0 && entry.len() >= keep;
 
-			if over_budget && !self.survives_netburst_trim(&event).await {
+			if over_budget && !self.survives_netburst_trim(&event, delivering).await {
 				warn!(
 					startup_netburst_keep = self.server.config.startup_netburst_keep,
 					queue_size = entry.len(),
@@ -343,7 +344,7 @@ impl Service {
 			}
 		}
 
-		if !restarted && !self.server.config.startup_netburst {
+		if !delivering {
 			return;
 		}
 
@@ -356,10 +357,10 @@ impl Service {
 	}
 
 	/// Whether this event skips the netburst budget, which MSC4354 asks of
-	/// still-sticky events. Only netburst delivers this queue, so with it
-	/// disabled there is nothing to keep the event for.
-	async fn survives_netburst_trim(&self, event: &SendingEvent) -> bool {
-		if !self.server.config.startup_netburst {
+	/// still-sticky events. Only a delivering netburst drains this queue, so
+	/// when nothing will deliver it there is nothing to keep the event for.
+	async fn survives_netburst_trim(&self, event: &SendingEvent, delivering: bool) -> bool {
+		if !delivering {
 			return false;
 		}
 
