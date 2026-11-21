@@ -1,6 +1,7 @@
+#[cfg(feature = "console")]
 use std::io::IsTerminal;
 
-use conduwuit::{Err, Result, debug, debug_info, error, info, warn};
+use conduwuit::{Err, Result, debug, debug_info, error, info};
 use ruma::events::room::message::RoomMessageEventContent;
 use tokio::time::{Duration, sleep};
 
@@ -15,7 +16,7 @@ impl super::Service {
 		#[cfg(feature = "console")]
 		if self.services.server.config.admin_console_automatic {
 			if !std::io::stdin().is_terminal() {
-				warn!("Console enabled without a tty available; Not enabling console");
+				conduwuit::warn!("Console enabled without a tty available; Not enabling console");
 				return;
 			}
 
