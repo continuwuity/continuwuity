@@ -82,6 +82,7 @@ Names below are as they appear in Prometheus. OTLP uses the dotted OpenTelemetry
 | `continuwuity_database_block_cache_bytes` | gauge | `column` | RocksDB block cache usage |
 | `continuwuity_cache_entries` | gauge | `name` | Entries in the auth chain and state info caches |
 | `continuwuity_jemalloc_memory_bytes` | gauge | `kind` | jemalloc statistics, only with the `jemalloc_stats` feature |
+| `continuwuity_mimalloc_memory_bytes` | gauge | `kind` | mimalloc statistics, only with the `mimalloc` feature |
 | `process_uptime_seconds` | gauge | | Time since the server started |
 | `process_cpu_time_seconds_total` | counter | `cpu_mode` | CPU time used by the process |
 | `process_memory_usage_bytes` | gauge | | Resident memory (Linux) |

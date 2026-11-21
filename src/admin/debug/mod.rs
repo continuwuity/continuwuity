@@ -192,7 +192,8 @@ pub enum DebugCommand {
 	///
 	/// Optional argument is a character mask (a sequence of characters in any
 	/// order) which enable additional extended statistics. Known characters are
-	/// "abdeglmx". For convenience, a '*' will enable everything.
+	/// "abdeglmx" and 'J' for JSON output. For convenience, a '*' will enable
+	/// everything.
 	MemoryStats {
 		opts: Option<String>,
 	},

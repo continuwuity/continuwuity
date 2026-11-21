@@ -38,3 +38,23 @@ async fn renders_prometheus_names() {
 	}
 	assert!(!body.contains("otel_scope_name"));
 }
+
+#[tokio::test]
+#[cfg(all(feature = "mimalloc", any(target_env = "msvc", not(feature = "jemalloc"))))]
+async fn renders_mimalloc_memory_metric() {
+	let (metrics, _provider) = metrics();
+	let body = metrics.render().unwrap();
+
+	for expected in [
+		"continuwuity_mimalloc_memory_bytes{kind=\"reserved\"}",
+		"continuwuity_mimalloc_memory_bytes{kind=\"reserved_peak\"}",
+		"continuwuity_mimalloc_memory_bytes{kind=\"committed\"}",
+		"continuwuity_mimalloc_memory_bytes{kind=\"committed_peak\"}",
+	] {
+		assert!(body.contains(expected), "missing {expected:?} in:\n{body}");
+	}
+	assert!(
+		!body.contains("continuwuity_jemalloc_memory_bytes"),
+		"unexpected jemalloc metric in mimalloc build:\n{body}"
+	);
+}

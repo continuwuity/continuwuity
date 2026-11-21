@@ -103,22 +103,30 @@ fn _static_initialization() {
 	}
 }
 
+pub(crate) fn metric() -> Option<(&'static str, &'static str)> {
+	Some((
+		"continuwuity.jemalloc.memory",
+		"jemalloc memory statistics, when built with jemalloc_stats",
+	))
+}
+
 #[must_use]
 #[cfg(feature = "jemalloc_stats")]
 pub fn memory_usage() -> Option<String> {
+	use std::fmt::Write;
+
 	let mibs = |input: usize| {
 		let whole = u32::try_from(input / (1024 * 1024)).unwrap_or(u32::MAX);
 		let rem_kibs = u32::try_from((input / 1024) % 1024).unwrap_or_default();
 		f64::from(whole) + f64::from(rem_kibs) / 1024.0
 	};
 
-	let [allocated, active, mapped, metadata, resident, retained] =
-		memory_usage_stats()?.map(|(_, bytes)| mibs(bytes));
-	Some(format!(
-		"allocated: {allocated:.2} MiB\nactive: {active:.2} MiB\nmapped: {mapped:.2} \
-		 MiB\nmetadata: {metadata:.2} MiB\nresident: {resident:.2} MiB\nretained: {retained:.2} \
-		 MiB\n"
-	))
+	let mut out = String::new();
+	for (name, bytes) in memory_usage_stats()? {
+		writeln!(out, "{name}: {:.2} MiB", mibs(bytes)).ok()?;
+	}
+
+	Some(out)
 }
 
 #[must_use]
@@ -127,25 +135,25 @@ pub fn memory_usage() -> Option<String> { None }
 
 #[must_use]
 #[cfg(feature = "jemalloc_stats")]
-pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> {
+pub fn memory_usage_stats() -> Option<ArrayVec<(&'static str, usize), 6>> {
 	use mallctl::stats;
 
 	// Advance the epoch; ensure latest stats are pulled in
 	inc_epoch().ok()?;
 
-	Some([
+	Some(ArrayVec::from([
 		("allocated", stats::allocated::read().unwrap_or_default()),
 		("active", stats::active::read().unwrap_or_default()),
 		("mapped", stats::mapped::read().unwrap_or_default()),
 		("metadata", stats::metadata::read().unwrap_or_default()),
 		("resident", stats::resident::read().unwrap_or_default()),
 		("retained", stats::retained::read().unwrap_or_default()),
-	])
+	]))
 }
 
 #[must_use]
 #[cfg(not(feature = "jemalloc_stats"))]
-pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> { None }
+pub fn memory_usage_stats() -> Option<ArrayVec<(&'static str, usize), 6>> { None }
 
 struct StatsPrintState {
 	buf: String,
