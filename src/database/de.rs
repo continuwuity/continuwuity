@@ -472,17 +472,5 @@ impl<'a, 'de: 'a> de::MapAccess<'de> for &'a mut Deserializer<'de> {
 	}
 }
 
-// activate when stable; too soon now
-//#[cfg(debug_assertions)]
 #[inline]
 fn deserialize_str(input: &[u8]) -> Result<&str> { string::str_from_bytes(input) }
-
-//#[cfg(not(debug_assertions))]
-#[cfg(disable)]
-#[inline]
-fn deserialize_str(input: &[u8]) -> Result<&str> {
-	// SAFETY: Strings were written by the serializer to the database. Assuming
-	// no database corruption, the string will be valid. Database corruption is
-	// detected via rocksdb checksums.
-	unsafe { std::str::from_utf8_unchecked(input) }
-}
