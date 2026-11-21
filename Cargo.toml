@@ -269,9 +269,6 @@ features = [
 [workspace.dependencies.tokio-metrics]
 version = "0.5.2"
 
-[workspace.dependencies.libloading]
-version = "0.9.0"
-
 [workspace.dependencies.wildmatch]
 version = "2.7.0"
 
@@ -753,74 +750,23 @@ inherits = "release"
 # Developer profile
 #
 
-# To enable hot-reloading:
-# 1. Uncomment all of the rustflags here.
-# 2. Uncomment crate-type=dylib in src/*/Cargo.toml
-#
-# opt-level, mir-opt-level, validate-mir are not known to interfere with reloading
-# and can be raised if build times are tolerable.
-
 [profile.dev]
 debug = "full"
 opt-level = 0
 panic = "unwind"
 debug-assertions = true
 incremental = true
-#rustflags = [
-#	'--cfg', 'conduwuit_mods',
-#	'-Ztime-passes',
-#	'-Zmir-opt-level=0',
-#	'-Zvalidate-mir=false',
-#	'-Ztls-model=global-dynamic',
-#	'-Cprefer-dynamic=true',
-#	'-Zstaticlib-prefer-dynamic=true',
-#	'-Zstaticlib-allow-rdylib-deps=true',
-#	'-Zpacked-bundled-libs=false',
-#	'-Zplt=true',
-#	'-Crpath=true',
-#	'-Clink-arg=-Wl,--as-needed',
-#	'-Clink-arg=-Wl,--allow-shlib-undefined',
-#	'-Clink-arg=-Wl,-z,keep-text-section-prefix',
-#	'-Clink-arg=-Wl,-z,lazy',
-#]
 
 [profile.dev.package.conduwuit_core]
 inherits = "dev"
 [profile.dev.package.conduwuit]
 inherits = "dev"
-#rustflags = [
-#	'--cfg', 'conduwuit_mods',
-#	'-Ztime-passes',
-#	'-Zmir-opt-level=0',
-#	'-Zvalidate-mir=false',
-#	'-Ztls-model=global-dynamic',
-#	'-Cprefer-dynamic=true',
-#	'-Zexport-executable-symbols=true',
-#	'-Zplt=true',
-#	'-Crpath=true',
-#	'-Clink-arg=-Wl,--as-needed',
-#	'-Clink-arg=-Wl,--allow-shlib-undefined',
-#	'-Clink-arg=-Wl,--export-dynamic',
-#	'-Clink-arg=-Wl,-z,lazy',
-#]
 
 [profile.dev.package.'*']
 inherits = "dev"
 debug = 'limited'
 codegen-units = 1
 opt-level = 'z'
-#rustflags = [
-#	'--cfg', 'conduwuit_mods',
-#	'-Ztls-model=global-dynamic',
-#	'-Cprefer-dynamic=true',
-#	'-Zstaticlib-prefer-dynamic=true',
-#	'-Zstaticlib-allow-rdylib-deps=true',
-#	'-Zpacked-bundled-libs=true',
-#	'-Zplt=true',
-#	'-Clink-arg=-Wl,--as-needed',
-#	'-Clink-arg=-Wl,-z,lazy',
-#	'-Clink-arg=-Wl,-z,nodelete',
-#]
 
 # primarily used for CI
 [profile.test]

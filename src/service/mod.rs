@@ -44,19 +44,13 @@ pub mod transactions;
 pub mod uiaa;
 pub mod users;
 
-use std::collections::BTreeMap;
-
-pub(crate) use service::{Args, Dep, Service};
-
-pub use crate::services::Services;
-
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
-
-use std::sync::LazyLock;
+use std::{collections::BTreeMap, sync::LazyLock};
 
 use conduwuit::matrix::versions::versions;
 use ruma::api::SupportedVersions;
+pub(crate) use service::{Args, Dep, Service};
+
+pub use crate::services::Services;
 
 pub static SUPPORTED_VERSIONS: LazyLock<SupportedVersions> =
 	LazyLock::new(|| SupportedVersions::from_parts(&versions(), &BTreeMap::new()));

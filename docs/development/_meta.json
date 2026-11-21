@@ -18,10 +18,5 @@
         "type": "file",
         "name": "testing",
         "label": "Testing"
-    },
-    {
-        "type": "file",
-        "name": "hot_reload",
-        "label": "Hot Reloading"
     }
 ]

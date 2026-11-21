@@ -10,7 +10,6 @@ mod clap;
 mod deadlock;
 mod logging;
 mod metrics;
-mod mods;
 mod panic;
 mod restart;
 mod runtime;
@@ -63,9 +62,8 @@ pub fn run_with_args(args: &Args) -> Result<()> {
 	Ok(())
 }
 
-/// Operate the server normally in release-mode static builds. This will start,
-/// run and stop the server within the asynchronous runtime.
-#[cfg(any(not(conduwuit_mods), not(feature = "conduwuit_mods")))]
+/// Operate the server. This will start, run and stop the server within the
+/// asynchronous runtime.
 #[tracing::instrument(
 	name = "main",
 	parent = None,
@@ -109,40 +107,6 @@ async fn async_main(server: &Arc<Server>) -> Result<(), Error> {
 	{
 		error!("Critical error stopping server: {error}");
 		return Err(error);
-	}
-
-	debug_info!("Exit runtime");
-	Ok(())
-}
-
-/// Operate the server in developer-mode dynamic builds. This will start, run,
-/// and hot-reload portions of the server as-needed before returning for an
-/// actual shutdown. This is not available in release-mode or static builds.
-#[cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
-async fn async_main(server: &Arc<Server>) -> Result<(), Error> {
-	let mut starts = true;
-	let mut reloads = true;
-	while reloads {
-		if let Err(error) = mods::open(server).await {
-			error!("Loading router: {error}");
-			return Err(error);
-		}
-
-		let result = mods::run(server, starts).await;
-		if let Ok(result) = result {
-			(starts, reloads) = result;
-		}
-
-		let force = !reloads || result.is_err();
-		if let Err(error) = mods::close(server, force).await {
-			error!("Unloading router: {error}");
-			return Err(error);
-		}
-
-		if let Err(error) = result {
-			error!("{error}");
-			return Err(error);
-		}
 	}
 
 	debug_info!("Exit runtime");

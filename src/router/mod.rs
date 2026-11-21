@@ -16,11 +16,7 @@ use conduwuit::{Error, Result, Server};
 use conduwuit_service::Services;
 use futures::{Future, FutureExt, TryFutureExt};
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
-
-#[unsafe(no_mangle)]
-pub extern "Rust" fn start(
+pub fn start(
 	server: &Arc<Server>,
 ) -> Pin<Box<dyn Future<Output = Result<Arc<Services>>> + Send>> {
 	AssertUnwindSafe(run::start(server.clone()))
@@ -30,10 +26,7 @@ pub extern "Rust" fn start(
 		.boxed()
 }
 
-#[unsafe(no_mangle)]
-pub extern "Rust" fn stop(
-	services: Arc<Services>,
-) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+pub fn stop(services: Arc<Services>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
 	AssertUnwindSafe(run::stop(services))
 		.catch_unwind()
 		.map_err(Error::from_panic)
@@ -41,10 +34,7 @@ pub extern "Rust" fn stop(
 		.boxed()
 }
 
-#[unsafe(no_mangle)]
-pub extern "Rust" fn run(
-	services: &Arc<Services>,
-) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+pub fn run(services: &Arc<Services>) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
 	AssertUnwindSafe(run::run(services.clone()))
 		.catch_unwind()
 		.map_err(Error::from_panic)

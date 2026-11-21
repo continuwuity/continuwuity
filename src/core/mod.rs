@@ -8,19 +8,6 @@ pub mod info;
 pub mod log;
 pub mod matrix;
 pub mod metrics;
-pub mod mods;
-
-#[cfg(any(not(conduwuit_mods), not(feature = "conduwuit_mods")))]
-pub mod mods {
-	#[macro_export]
-	macro_rules! mod_ctor {
-		() => {};
-	}
-	#[macro_export]
-	macro_rules! mod_dtor {
-		() => {};
-	}
-}
 pub mod server;
 pub mod utils;
 

@@ -36,10 +36,6 @@ List database backups
 
 Send a message to the admin room
 
-## `!admin server reload`
-
-Hot-reload the server
-
 ## `!admin server restart`
 
 Restart the server

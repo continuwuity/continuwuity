@@ -175,9 +175,6 @@ zstd_compression = [
     "conduwuit-router/zstd_compression",
     "conduwuit-service/zstd_compression",
 ]
-conduwuit_mods = [
-    "conduwuit-core/conduwuit_mods",
-]
 bindgen-static = [
     # "bindgen/static"
     # "clang-sys/static"

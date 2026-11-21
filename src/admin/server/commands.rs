@@ -110,14 +110,6 @@ impl crate::Context<'_> {
 		self.write_str("Notice was sent to #admins").await
 	}
 
-	pub(super) async fn reload_mods(&self) -> Result {
-		self.bail_restricted()?;
-
-		self.services.server.reload()?;
-
-		self.write_str("Reloading server...").await
-	}
-
 	#[cfg(unix)]
 	pub(super) async fn restart(&self, force: bool) -> Result {
 		use conduwuit::utils::sys::current_exe_deleted;

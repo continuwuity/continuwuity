@@ -12,7 +12,6 @@ pub(super) async fn signal(server: Arc<Server>) {
 	use unix::SignalKind;
 
 	const CONSOLE: bool = cfg!(feature = "console");
-	const RELOADING: bool = cfg!(all(conduwuit_mods, feature = "conduwuit_mods", not(CONSOLE)));
 
 	let mut quit = unix::signal(SignalKind::quit()).expect("SIGQUIT handler");
 	let mut term = unix::signal(SignalKind::terminate()).expect("SIGTERM handler");
@@ -30,9 +29,7 @@ pub(super) async fn signal(server: Arc<Server>) {
 		}
 
 		warn!("Received {sig}");
-		let result = if RELOADING && sig == "SIGINT" {
-			server.server.reload()
-		} else if matches!(sig, "SIGQUIT" | "SIGTERM") || (!CONSOLE && sig == "SIGINT") {
+		let result = if matches!(sig, "SIGQUIT" | "SIGTERM") || (!CONSOLE && sig == "SIGINT") {
 			server.server.shutdown()
 		} else {
 			server.server.signal(sig)

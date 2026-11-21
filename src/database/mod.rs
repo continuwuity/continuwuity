@@ -5,9 +5,6 @@ extern crate rust_rocksdb as rocksdb;
 
 conduwuit_macros::introspect_crate! {}
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
-
 #[cfg(test)]
 mod benches;
 mod cork;

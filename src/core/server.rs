@@ -27,10 +27,6 @@ pub struct Server {
 	/// observable used on shutdown and should not be modified.
 	pub stopping: AtomicBool,
 
-	/// Reload/shutdown desired indicator; when false, shutdown is desired. This
-	/// is an observable used on shutdown and modifying is not recommended.
-	pub reloading: AtomicBool,
-
 	/// Restart desired; when true, restart it desired after shutdown.
 	pub restarting: AtomicBool,
 
@@ -60,32 +56,12 @@ impl Server {
 			config: config::Manager::new(config),
 			started: SystemTime::now(),
 			stopping: AtomicBool::new(false),
-			reloading: AtomicBool::new(false),
 			restarting: AtomicBool::new(false),
 			runtime,
 			signal: broadcast::channel::<&'static str>(1).0,
 			log,
 			metrics,
 		}
-	}
-
-	pub fn reload(&self) -> Result<()> {
-		if cfg!(any(not(conduwuit_mods), not(feature = "conduwuit_mods"))) {
-			return Err!("Reloading not enabled");
-		}
-
-		if self.reloading.swap(true, Ordering::AcqRel) {
-			return Err!("Reloading already in progress");
-		}
-
-		if self.stopping.swap(true, Ordering::AcqRel) {
-			return Err!("Shutdown already in progress");
-		}
-
-		self.signal("SIGINT").inspect_err(|_| {
-			self.stopping.store(false, Ordering::Release);
-			self.reloading.store(false, Ordering::Release);
-		})
 	}
 
 	pub fn restart(&self) -> Result {
@@ -145,9 +121,6 @@ impl Server {
 
 	#[inline]
 	pub fn is_stopping(&self) -> bool { self.stopping.load(Ordering::Relaxed) }
-
-	#[inline]
-	pub fn is_reloading(&self) -> bool { self.reloading.load(Ordering::Relaxed) }
 
 	#[inline]
 	pub fn is_restarting(&self) -> bool { self.restarting.load(Ordering::Relaxed) }

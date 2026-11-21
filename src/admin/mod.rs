@@ -34,9 +34,6 @@ pub(crate) use crate::{context::Context, utils::get_room_info};
 
 pub(crate) const PAGE_SIZE: usize = 100;
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
-
 pub use crate::admin::AdminCommand;
 
 /// Install the admin command processor

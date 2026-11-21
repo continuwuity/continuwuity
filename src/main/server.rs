@@ -27,10 +27,6 @@ pub(crate) struct Server {
 
 	#[cfg(feature = "sentry_telemetry")]
 	_sentry_guard: Option<::sentry::ClientInitGuard>,
-
-	#[cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
-	// Module instances; TODO: move to mods::loaded mgmt vector
-	pub(crate) mods: tokio::sync::RwLock<Vec<conduwuit_core::mods::Module>>,
 }
 
 impl Server {
@@ -87,9 +83,6 @@ impl Server {
 
 			#[cfg(feature = "sentry_telemetry")]
 			_sentry_guard: sentry_guard,
-
-			#[cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
-			mods: tokio::sync::RwLock::new(Vec::new()),
 		}))
 	}
 

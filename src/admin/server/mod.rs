@@ -39,10 +39,6 @@ pub enum ServerCommand {
 		message: Vec<String>,
 	},
 
-	/// Hot-reload the server
-	#[command(name = "reload", alias = "reload-mods")]
-	ReloadMods,
-
 	#[cfg(unix)]
 	/// Restart the server
 	Restart {
