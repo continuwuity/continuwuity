@@ -171,25 +171,37 @@ impl Data {
 	}
 
 	/// Destinations with at least one queued request not yet in flight.
+	///
+	/// Seeks past each destination's key prefix so large per-destination
+	/// backlogs are skipped in O(destinations) seeks rather than scanning
+	/// every queued event.
 	pub(super) async fn queued_destinations(&self) -> Vec<Destination> {
-		let mut dests: Vec<Destination> = Vec::new();
-		let mut last_prefix: Vec<u8> = Vec::new();
-		self.servernameevent_data
-			.raw_stream()
+		let mut dests = Vec::new();
+		let mut cursor = Vec::new();
+
+		while let Some(key) = self
+			.servernameevent_data
+			.raw_keys_from(&cursor)
 			.ignore_err()
-			.ready_for_each(|(key, val)| {
-				if !last_prefix.is_empty() && key.starts_with(&last_prefix) {
-					return;
-				}
-				match parse_servercurrentevent(key, val) {
-					| Ok((dest, _)) => {
-						last_prefix = dest.get_prefix();
-						dests.push(dest);
-					},
-					| Err(e) => warn!(?key, "invalid queued request key: {e}"),
-				}
-			})
-			.await;
+			.next()
+			.await
+		{
+			match parse_destination(key) {
+				| Ok((dest, _)) => {
+					let prefix = dest.get_prefix();
+					dests.push(dest);
+					let Some(next) = next_prefix(&prefix) else {
+						break;
+					};
+					cursor = next;
+				},
+				| Err(e) => {
+					warn!(?key, "invalid queued request key: {e}");
+					cursor = key.to_vec();
+					cursor.push(0);
+				},
+			}
+		}
 
 		dests
 	}
@@ -216,9 +228,17 @@ impl Data {
 	}
 }
 
-fn parse_servercurrentevent(key: &[u8], value: &[u8]) -> Result<(Destination, SendingEvent)> {
+/// Smallest byte slice strictly greater than every key starting with `prefix`.
+fn next_prefix(prefix: &[u8]) -> Option<Vec<u8>> {
+	let pos = prefix.iter().rposition(|&b| b < u8::MAX)?;
+	let mut next = prefix[..=pos].to_vec();
+	next[pos] = next[pos].saturating_add(1);
+	Some(next)
+}
+
+fn parse_destination(key: &[u8]) -> Result<(Destination, &[u8])> {
 	// Appservices start with a plus
-	Ok::<_, Error>(if key.starts_with(b"+") {
+	if key.starts_with(b"+") {
 		let mut parts = key[1..].splitn(2, |&b| b == 0xFF);
 
 		let server = parts.next().expect("splitn always returns one element");
@@ -230,14 +250,7 @@ fn parse_servercurrentevent(key: &[u8], value: &[u8]) -> Result<(Destination, Se
 			Error::bad_database("Invalid server bytes in server_currenttransaction")
 		})?;
 
-		(
-			Destination::Appservice(server),
-			if value.is_empty() {
-				SendingEvent::Pdu(event.into())
-			} else {
-				SendingEvent::Edu(value.into())
-			},
-		)
+		Ok((Destination::Appservice(server), event))
 	} else if key.starts_with(b"$") {
 		let mut parts = key[1..].splitn(3, |&b| b == 0xFF);
 
@@ -257,15 +270,7 @@ fn parse_servercurrentevent(key: &[u8], value: &[u8]) -> Result<(Destination, Se
 			.next()
 			.ok_or_else(|| Error::bad_database("Invalid bytes in servercurrentpdus."))?;
 
-		(
-			Destination::Push(user_id, pushkey_string),
-			if value.is_empty() {
-				SendingEvent::Pdu(event.into())
-			} else {
-				// I'm pretty sure this should never be called
-				SendingEvent::Edu(value.into())
-			},
-		)
+		Ok((Destination::Push(user_id, pushkey_string), event))
 	} else {
 		let mut parts = key.splitn(2, |&b| b == 0xFF);
 
@@ -278,15 +283,22 @@ fn parse_servercurrentevent(key: &[u8], value: &[u8]) -> Result<(Destination, Se
 			Error::bad_database("Invalid server bytes in server_currenttransaction")
 		})?;
 
-		(
+		Ok((
 			Destination::Federation(ServerName::parse(&server).map_err(|_| {
 				Error::bad_database("Invalid server string in server_currenttransaction")
 			})?),
-			if value.is_empty() {
-				SendingEvent::Pdu(event.into())
-			} else {
-				SendingEvent::Edu(value.into())
-			},
-		)
-	})
+			event,
+		))
+	}
+}
+
+fn parse_servercurrentevent(key: &[u8], value: &[u8]) -> Result<(Destination, SendingEvent)> {
+	let (dest, event) = parse_destination(key)?;
+	let event = if value.is_empty() {
+		SendingEvent::Pdu(event.into())
+	} else {
+		SendingEvent::Edu(value.into())
+	};
+
+	Ok((dest, event))
 }

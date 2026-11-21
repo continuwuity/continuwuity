@@ -10,12 +10,16 @@ use crate::test_utils::test_services;
 async fn queued_destinations_lists_each_destination_with_unsent_requests() {
 	let (services, path, _database) = test_services().await;
 	let db = &services.sending.db;
+	let queued_sub = Destination::Federation(server_name!("queued.example.org").to_owned());
 	let queued = Destination::Federation(server_name!("queued.example").to_owned());
+	let appservice = Destination::Appservice("bridge".to_owned());
 	let active = Destination::Federation(server_name!("active.example").to_owned());
 	let event = SendingEvent::Edu(EduBuf::from_slice(br#"{"edu_type":"m.typing"}"#));
 
 	db.queue_requests(once((&event, &queued)));
 	db.queue_requests(once((&event, &queued)));
+	db.queue_requests(once((&event, &queued_sub)));
+	db.queue_requests(once((&event, &appservice)));
 	db.queue_requests(once((&event, &active)));
 	let in_flight: Vec<_> = db.queued_requests(&active).collect().await;
 	db.mark_as_active(in_flight.iter());
@@ -24,7 +28,7 @@ async fn queued_destinations_lists_each_destination_with_unsent_requests() {
 
 	drop(services);
 	std::fs::remove_dir_all(path).unwrap();
-	assert_eq!(dests, [queued]);
+	assert_eq!(dests, [appservice, queued_sub, queued]);
 }
 
 #[test]
