@@ -540,14 +540,22 @@ impl Service {
 		sender.send(msg).map_err(|e| err!("{e}"))
 	}
 
-	/// Hands the oldest unsent request of each destination to its worker, so
-	/// a backlog with nothing in flight is sent without waiting for a new
-	/// event. Bypasses `dispatch` as these requests were already counted.
+	/// Wakes workers for every destination that has unsent queued requests, so
+	/// a backlog with nothing in flight is drained without waiting for a new
+	/// event. Uses `SendingEvent::Flush` so a message racing with already-
+	/// buffered channel items cannot re-insert and duplicate a sent request.
 	async fn dispatch_queued(&self, shard: Option<usize>) {
-		for (dest, (queue_id, event)) in self.db.queued_heads().await {
+		for dest in self.db.queued_destinations().await {
 			let id = self.shard_id(&dest);
 			if shard.is_none_or(|shard| shard == id) {
-				self.channels[id].0.send(Msg { dest, event, queue_id }).ok();
+				self.channels[id]
+					.0
+					.send(Msg {
+						dest,
+						event: SendingEvent::Flush,
+						queue_id: Vec::new(),
+					})
+					.ok();
 			}
 		}
 	}

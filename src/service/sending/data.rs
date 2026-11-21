@@ -170,22 +170,28 @@ impl Data {
 			})
 	}
 
-	/// The oldest queued request of each destination, not yet in flight.
-	pub(super) async fn queued_heads(&self) -> Vec<(Destination, QueueItem)> {
-		let mut heads: Vec<(Destination, QueueItem)> = Vec::new();
+	/// Destinations with at least one queued request not yet in flight.
+	pub(super) async fn queued_destinations(&self) -> Vec<Destination> {
+		let mut dests: Vec<Destination> = Vec::new();
+		let mut last_prefix: Vec<u8> = Vec::new();
 		self.servernameevent_data
 			.raw_stream()
 			.ignore_err()
-			.ready_for_each(|(key, val)| match parse_servercurrentevent(key, val) {
-				| Ok((dest, event)) =>
-					if heads.last().is_none_or(|(last, _)| *last != dest) {
-						heads.push((dest, (key.to_vec(), event)));
+			.ready_for_each(|(key, val)| {
+				if !last_prefix.is_empty() && key.starts_with(&last_prefix) {
+					return;
+				}
+				match parse_servercurrentevent(key, val) {
+					| Ok((dest, _)) => {
+						last_prefix = dest.get_prefix();
+						dests.push(dest);
 					},
-				| Err(e) => warn!(?key, "invalid queued request key: {e}"),
+					| Err(e) => warn!(?key, "invalid queued request key: {e}"),
+				}
 			})
 			.await;
 
-		heads
+		dests
 	}
 
 	/// Estimated number of requests waiting to be sent and in flight.

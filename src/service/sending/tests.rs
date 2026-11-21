@@ -7,29 +7,24 @@ use super::{Destination, EduBuf, SendingEvent, restart_delay};
 use crate::test_utils::test_services;
 
 #[tokio::test]
-async fn queued_heads_lists_the_oldest_unsent_request_per_destination() {
+async fn queued_destinations_lists_each_destination_with_unsent_requests() {
 	let (services, path, _database) = test_services().await;
 	let db = &services.sending.db;
 	let queued = Destination::Federation(server_name!("queued.example").to_owned());
 	let active = Destination::Federation(server_name!("active.example").to_owned());
 	let event = SendingEvent::Edu(EduBuf::from_slice(br#"{"edu_type":"m.typing"}"#));
 
-	let first = db.queue_requests(once((&event, &queued)));
+	db.queue_requests(once((&event, &queued)));
 	db.queue_requests(once((&event, &queued)));
 	db.queue_requests(once((&event, &active)));
 	let in_flight: Vec<_> = db.queued_requests(&active).collect().await;
 	db.mark_as_active(in_flight.iter());
 
-	let heads: Vec<_> = db
-		.queued_heads()
-		.await
-		.into_iter()
-		.map(|(dest, (key, _))| (dest, key))
-		.collect();
+	let dests = db.queued_destinations().await;
 
 	drop(services);
 	std::fs::remove_dir_all(path).unwrap();
-	assert_eq!(heads, [(queued, first[0].clone())]);
+	assert_eq!(dests, [queued]);
 }
 
 #[test]
