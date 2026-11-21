@@ -70,7 +70,6 @@ standard = [
 ]
 full = [
     "standard",
-    # "hardened_malloc", # Conflicts with jemalloc
     "jemalloc_prof",
     "perf_measurements",
     "tokio_console",
@@ -96,9 +95,6 @@ gzip_compression = [
     "conduwuit-router/gzip_compression",
     "conduwuit-service/gzip_compression",
 ]
-hardened_malloc = [
-    "conduwuit-core/hardened_malloc",
-]
 http3 = [
     "conduwuit-service/http3"
 ]
@@ -115,6 +111,9 @@ io_uring = [
 jemalloc = [
     "conduwuit-core/jemalloc",
     "conduwuit-service/jemalloc",
+]
+mimalloc = [
+    "conduwuit-core/mimalloc"
 ]
 jemalloc_prof = [
     "conduwuit-core/jemalloc_prof",

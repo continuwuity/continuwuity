@@ -43,10 +43,10 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
-	if cfg!(all(feature = "hardened_malloc", feature = "jemalloc", not(target_env = "msvc"))) {
+	if cfg!(all(feature = "mimalloc", feature = "jemalloc")) {
 		debug_warn!(
-			"hardened_malloc and jemalloc compile-time features are both enabled, this causes \
-			 jemalloc to be used."
+			"mimalloc and jemalloc compile-time features are both enabled, this causes jemalloc \
+			 to be used."
 		);
 	}
 

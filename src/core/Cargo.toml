@@ -26,13 +26,13 @@ conduwuit_mods = [
 gzip_compression = [
     "reqwest/gzip",
 ]
-hardened_malloc = [
-    "dep:hardened_malloc-rs"
-]
 jemalloc = [
     "dep:tikv-jemalloc-sys",
     "dep:tikv-jemalloc-ctl",
     "dep:tikv-jemallocator",
+]
+mimalloc = [
+    "dep:mimalloc",
 ]
 jemalloc_conf = []
 jemalloc_prof = [
@@ -118,13 +118,11 @@ lock_api.workspace = true
 hyper-util.workspace = true
 resolvematrix.workspace = true
 openidconnect.workspace = true
+mimalloc.optional = true
+mimalloc.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix.workspace = true
-
-[target.'cfg(all(not(target_env = "msvc"), target_os = "linux"))'.dependencies]
-hardened_malloc-rs.workspace = true
-hardened_malloc-rs.optional = true
 
 [dev-dependencies]
 maplit.workspace = true

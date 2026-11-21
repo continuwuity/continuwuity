@@ -991,7 +991,6 @@ dependencies = [
  "figment",
  "futures",
  "governor",
- "hardened_malloc-rs",
  "http",
  "http-body-util",
  "hyper-util",
@@ -1001,6 +1000,7 @@ dependencies = [
  "libloading 0.9.1",
  "lock_api 0.5.0",
  "maplit",
+ "mimalloc",
  "nix",
  "num-traits",
  "openidconnect",
@@ -2396,12 +2396,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hardened_malloc-rs"
-version = "0.1.2+12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "647deb1583b14d160f85f3ff626f20b6edd366e3852c9843b06077388f794cb6"
-
-[[package]]
 name = "hashbrown"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3257,6 +3251,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
+name = "libmimalloc-sys"
+version = "0.1.49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "libz-sys"
 version = "1.1.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3427,6 +3430,15 @@ dependencies = [
  "tracing",
  "urlencoding",
  "walkdir",
+]
+
+[[package]]
+name = "mimalloc"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862"
+dependencies = [
+ "libmimalloc-sys",
 ]
 
 [[package]]
