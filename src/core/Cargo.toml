@@ -31,9 +31,13 @@ jemalloc = [
     "dep:tikv-jemalloc-ctl",
     "dep:tikv-jemallocator",
 ]
+# Uses mimalloc for Rust allocations and, via `override`, exports
+# malloc/free/etc. so C/C++ dependencies (RocksDB, zstd, lz4, ...) use it too.
+# Mutually exclusive with `jemalloc` on non-MSVC targets.
 mimalloc = [
     "dep:libmimalloc-sys",
     "dep:mimalloc",
+    "libmimalloc-sys/override",
 ]
 jemalloc_conf = []
 jemalloc_prof = [
