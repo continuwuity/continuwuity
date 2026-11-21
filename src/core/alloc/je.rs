@@ -595,3 +595,102 @@ fn name(name: &str) -> Result<Name> {
 fn map_err(error: tikv_jemalloc_ctl::Error) -> crate::Error {
 	err!("mallctl: {}", error.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn notify_ctls_succeed() {
+		this_thread::flush().expect("thread.tcache.flush");
+		this_thread::decay().expect("arena.<i>.decay");
+		this_thread::purge().expect("arena.<i>.purge");
+		this_thread::trim().expect("this_thread::trim");
+		trim(None).expect("trim(None)");
+	}
+
+	#[test]
+	#[cfg(feature = "jemalloc_stats")]
+	fn allocated_and_deallocated_do_not_alias() {
+		let a0 = this_thread::allocated();
+		let d0 = this_thread::deallocated();
+
+		let buf = std::hint::black_box(vec![0_u8; 64 * 1024]);
+		let a1 = this_thread::allocated();
+		assert!(a1 > a0, "expected allocated to increase: {a0} -> {a1}");
+
+		drop(buf);
+		let d1 = this_thread::deallocated();
+		assert!(d1 > d0, "expected deallocated to increase: {d0} -> {d1}");
+	}
+
+	#[test]
+	fn memory_stats_handles_valid_and_nul_opts() {
+		assert!(memory_stats("invalid\0opts").is_none());
+		let stats = memory_stats("gmal").expect("memory_stats");
+		assert!(!stats.is_empty());
+	}
+
+	#[test]
+	fn key_too_many_segments_returns_err() {
+		key("a.b.c.d.e.f.g.h.i").unwrap_err();
+	}
+
+	#[test]
+	fn key_interior_nul_returns_err() {
+		key("a.b\0.c").unwrap_err();
+	}
+
+	#[test]
+	fn arena_index_bounds_rejected() {
+		purge(Some(ARENAS_ALL)).expect("purge(MALLCTL_ARENAS_ALL)");
+		decay(Some(ARENAS_ALL)).expect("decay(MALLCTL_ARENAS_ALL)");
+
+		let narenas = arenas().expect("arenas.narenas");
+		purge(Some(narenas)).unwrap_err();
+		decay(Some(narenas)).unwrap_err();
+		set_dirty_decay(Some(narenas), -1).unwrap_err();
+		set_muzzy_decay(Some(narenas), -1).unwrap_err();
+
+		purge(Some(4097)).unwrap_err();
+		decay(Some(4097)).unwrap_err();
+		trim(Some(4097)).unwrap_err();
+		purge(Some(usize::MAX)).unwrap_err();
+
+		set_dirty_decay(Some(ARENAS_ALL), -1).unwrap_err();
+		set_muzzy_decay(Some(ARENAS_ALL), -1).unwrap_err();
+		set_dirty_decay(Some(4097), -1).unwrap_err();
+		set_muzzy_decay(Some(4097), -1).unwrap_err();
+	}
+
+	#[test]
+	#[cfg(feature = "jemalloc_conf")]
+	fn malloc_conf_is_applied() {
+		if std::env::var_os("MALLOC_CONF").is_some()
+			|| std::env::var_os("_RJEM_MALLOC_CONF").is_some()
+		{
+			return;
+		}
+
+		// SAFETY: `opt.dirty_decay_ms` and `opt.muzzy_decay_ms` have C type `ssize_t`.
+		let dirty = unsafe { get::<isize>(mallctl!("opt.dirty_decay_ms")) }
+			.expect("opt.dirty_decay_ms");
+		let muzzy = unsafe { get::<isize>(mallctl!("opt.muzzy_decay_ms")) }
+			.expect("opt.muzzy_decay_ms");
+		assert_eq!(dirty, 16_000, "expected malloc_conf dirty_decay_ms:16000");
+		assert_eq!(muzzy, 144_000, "expected malloc_conf muzzy_decay_ms:144000");
+	}
+
+	#[test]
+	fn percpu_arenas_returns_valid_mode() {
+		let mode = percpu_arenas().expect("opt.percpu_arena");
+		assert!(matches!(mode, "disabled" | "percpu" | "phycpu"), "unexpected mode: {mode}");
+	}
+
+	#[test]
+	fn epoch_read_and_advance() {
+		let e0 = acq_epoch().expect("acq_epoch");
+		let e1 = inc_epoch().expect("inc_epoch");
+		assert!(e1 > e0, "expected inc_epoch to advance epoch: {e0} -> {e1}");
+	}
+}
