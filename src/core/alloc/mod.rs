@@ -1,14 +1,17 @@
 //! Integration with allocators
 
-pub mod default;
-
-#[cfg(feature = "jemalloc")]
+// jemalloc
+#[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
 pub mod je;
-#[cfg(feature = "jemalloc")]
+#[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
 pub use je::{memory_stats, memory_usage, memory_usage_stats, trim};
 
-#[cfg(all(feature = "mimalloc", not(feature = "jemalloc")))]
+// mimalloc
+#[cfg(all(feature = "mimalloc", any(target_env = "msvc", not(feature = "jemalloc"))))]
 pub mod mimalloc;
 
-#[cfg(not(feature = "jemalloc"))]
+// default
+#[cfg(any(target_env = "msvc", not(feature = "jemalloc")))]
+pub mod default;
+#[cfg(any(target_env = "msvc", not(feature = "jemalloc")))]
 pub use default::{memory_stats, memory_usage, memory_usage_stats, trim};
