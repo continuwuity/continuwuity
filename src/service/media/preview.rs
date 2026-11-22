@@ -182,8 +182,6 @@ impl Service {
 		use conduwuit::utils::random_string;
 		use image::ImageReader;
 
-		use crate::media::mxc::Mxc;
-
 		let mut preview_data = UrlPreviewData::default();
 
 		self.check_url_ip(url)?;
