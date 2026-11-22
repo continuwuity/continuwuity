@@ -522,13 +522,6 @@ impl Service {
 		let device_changes =
 			self.select_edus_device_changes(server_name, batch, &max_edu_count, &events_len);
 
-		let receipts: OptionFuture<_> = self
-			.server
-			.config
-			.allow_outgoing_read_receipts
-			.then(|| self.select_edus_receipts(server_name, batch, &max_edu_count))
-			.into();
-
 		let presence: OptionFuture<_> = self
 			.server
 			.config
@@ -536,11 +529,20 @@ impl Service {
 			.then(|| self.select_edus_presence(server_name, batch, &max_edu_count))
 			.into();
 
-		let (device_changes, receipts, presence) = join!(device_changes, receipts, presence);
+		let (device_changes, presence) = join!(device_changes, presence);
 
 		let mut events = device_changes;
 		events.extend(presence.into_iter().flatten());
-		events.extend(receipts.into_iter().flatten());
+
+		// leave a slot for the queued event, but always allow one receipt EDU
+		let edu_limit = (EDU_LIMIT - 1).saturating_sub(events.len()).max(1);
+		if self.server.config.allow_outgoing_read_receipts {
+			// must be selected last, as it may lower max_edu_count
+			events.extend(
+				self.select_edus_receipts(server_name, batch, &max_edu_count, edu_limit)
+					.await,
+			);
+		}
 
 		// TODO(nex): some EDUs like typing need flattening
 
@@ -616,9 +618,11 @@ impl Service {
 		server_name: &ServerName,
 		since: (u64, u64),
 		max_edu_count: &AtomicU64,
-	) -> Option<EduBuf> {
+		edu_limit: usize,
+	) -> EduVec {
 		let num = AtomicUsize::new(0);
-		let receipts: BTreeMap<OwnedRoomId, ReceiptMap> = self
+		let deferred = AtomicU64::new(u64::MAX);
+		let rooms: Vec<_> = self
 			.services
 			.state_cache
 			.server_rooms(server_name)
@@ -627,33 +631,54 @@ impl Service {
 					return None;
 				}
 
-				let receipt_map = self
-					.select_edus_receipts_room(&room_id, since, max_edu_count, &num)
+				let maps = self
+					.select_edus_receipts_room(
+						&room_id,
+						since,
+						max_edu_count,
+						&num,
+						edu_limit,
+						&deferred,
+					)
 					.await;
 
-				(!receipt_map.read.is_empty()).then_some((room_id, receipt_map))
+				(!maps.is_empty()).then_some((room_id, maps))
 			})
 			.collect()
 			.await;
 
-		if receipts.is_empty() {
-			return None;
+		// the next transaction starts at the first receipt that did not fit
+		max_edu_count
+			.fetch_min(deferred.load(Ordering::Relaxed).saturating_sub(1), Ordering::Relaxed);
+
+		let mut contents = Vec::<BTreeMap<OwnedRoomId, ReceiptMap>>::new();
+		for (room_id, maps) in rooms {
+			for (index, read) in maps.into_iter().enumerate() {
+				if index == contents.len() {
+					contents.push(BTreeMap::new());
+				}
+				contents[index].insert(room_id.clone(), ReceiptMap::new(read));
+			}
 		}
 
-		let receipt_content = Edu::Receipt(ReceiptContent::new(receipts));
+		contents
+			.into_iter()
+			.map(|content| {
+				let edu = Edu::Receipt(ReceiptContent::new(content));
 
-		let mut buf = EduBuf::new();
-		serde_json::to_writer(&mut buf, &receipt_content)
-			.expect("Failed to serialize Receipt EDU to JSON vec");
-
-		Some(buf)
+				let mut buf = EduBuf::new();
+				serde_json::to_writer(&mut buf, &edu)
+					.expect("Failed to serialize Receipt EDU to JSON vec");
+				buf
+			})
+			.collect()
 	}
 
 	/// Look for read receipts in this room
 	#[tracing::instrument(
 		name = "receipts",
 		level = "trace",
-		skip(self, since, max_edu_count, num)
+		skip(self, since, max_edu_count, num, deferred)
 	)]
 	async fn select_edus_receipts_room(
 		&self,
@@ -661,14 +686,16 @@ impl Service {
 		since: (u64, u64),
 		max_edu_count: &AtomicU64,
 		num: &AtomicUsize,
-	) -> ReceiptMap {
+		edu_limit: usize,
+		deferred: &AtomicU64,
+	) -> Vec<BTreeMap<OwnedUserId, ReceiptData>> {
 		let receipts = self
 			.services
 			.read_receipt
 			.readreceipts_since(room_id, Some(since.0));
 
 		pin_mut!(receipts);
-		let mut read = BTreeMap::<OwnedUserId, ReceiptData>::new();
+		let mut maps = Vec::new();
 		while let Some((user_id, count, read_receipt)) = receipts.next().await {
 			if count > since.1 {
 				break;
@@ -704,14 +731,20 @@ impl Service {
 
 			let receipt_data = ReceiptData::new(receipt, vec![event_id]);
 
-			if read.insert(user_id, receipt_data).is_none() {
-				if num.fetch_add(1, Ordering::Relaxed).saturating_add(1) >= SELECT_RECEIPT_LIMIT {
-					break;
-				}
+			let Some(index) = add_receipt(&mut maps, user_id, receipt_data, edu_limit) else {
+				deferred.fetch_min(count, Ordering::Relaxed);
+				break;
+			};
+
+			// only a user's first receipt counts towards the limit
+			if index == 0
+				&& num.fetch_add(1, Ordering::Relaxed).saturating_add(1) >= SELECT_RECEIPT_LIMIT
+			{
+				break;
 			}
 		}
 
-		ReceiptMap::new(read)
+		maps
 	}
 
 	/// Look for presence
@@ -1109,4 +1142,28 @@ impl Service {
 			to_raw_value(&pdu_json).expect("CanonicalJson is valid serde_json::Value"),
 		)
 	}
+}
+
+/// Adds the receipt to the first map without one from the user and returns
+/// that map's index, or `None` if all `limit` maps have one.
+fn add_receipt(
+	maps: &mut Vec<BTreeMap<OwnedUserId, ReceiptData>>,
+	user_id: OwnedUserId,
+	receipt: ReceiptData,
+	limit: usize,
+) -> Option<usize> {
+	let index = maps
+		.iter()
+		.position(|map| !map.contains_key(&user_id))
+		.unwrap_or(maps.len());
+	if index >= limit {
+		return None;
+	}
+
+	if index == maps.len() {
+		maps.push(BTreeMap::new());
+	}
+	maps[index].insert(user_id, receipt);
+
+	Some(index)
 }

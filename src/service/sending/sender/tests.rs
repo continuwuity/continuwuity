@@ -1,14 +1,19 @@
-use std::iter::once;
+use std::{collections::BTreeMap, iter::once};
 
 use conduwuit::{
 	Error,
 	matrix::{PartialPdu, pdu::sticky},
 };
 use futures::{StreamExt, stream::FuturesUnordered};
-use ruma::{RoomId, UserId, events::sticky::StickyDurationMs, server_name};
+use ruma::{
+	RoomId, UserId,
+	api::federation::transactions::edu::ReceiptData,
+	events::{receipt::Receipt, sticky::StickyDurationMs},
+	server_name, user_id,
+};
 use serde_json::{json, value::to_raw_value};
 
-use super::{CurTransactionStatus, TransactionStatus};
+use super::{CurTransactionStatus, TransactionStatus, add_receipt};
 use crate::{
 	sending::{Destination, EduBuf, SendingEvent},
 	test_utils::{test_services, test_services_with},
@@ -195,4 +200,18 @@ async fn restarted_worker_keeps_sticky_events_when_startup_netburst_is_disabled(
 	assert_eq!(sending_after_restart, 1);
 	assert_eq!(active_after_startup, 0);
 	assert_eq!(sending_after_startup, 0);
+}
+
+#[test]
+fn add_receipt_separates_receipts_of_one_user() {
+	let alice = user_id!("@alice:example.org");
+	let bob = user_id!("@bob:example.org");
+	let receipt = || ReceiptData::new(Receipt::default(), vec![]);
+	let mut maps = Vec::new();
+
+	assert_eq!(add_receipt(&mut maps, alice.to_owned(), receipt(), 2), Some(0));
+	assert_eq!(add_receipt(&mut maps, alice.to_owned(), receipt(), 2), Some(1));
+	assert_eq!(add_receipt(&mut maps, bob.to_owned(), receipt(), 2), Some(0));
+	assert_eq!(add_receipt(&mut maps, alice.to_owned(), receipt(), 2), None);
+	assert_eq!(maps.iter().map(BTreeMap::len).collect::<Vec<_>>(), [2, 1]);
 }
