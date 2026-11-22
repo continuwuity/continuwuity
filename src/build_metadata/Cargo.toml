@@ -27,7 +27,7 @@ crate-type = [
 [dependencies]
 
 [build-dependencies]
-built = { version = "0.8", features = [] }
+built = { version = "0.9", features = [] }
 cargo_metadata = { version = "0.23.1" }
 [lints]
 workspace = true
