@@ -103,7 +103,7 @@ async fn query_inner(
 		if total_queried_servers > MAX_SERVERS_PER_QUERY {
 			return Err!(Request(TooLarge(
 				"Too many server keys requested ({total_queried_servers} > \
-				 {MAX_SERVERS_PER_QUERY}",
+				 {MAX_SERVERS_PER_QUERY})",
 			)));
 		}
 		if total_queried_keys > MAX_KEYS_PER_QUERY {
