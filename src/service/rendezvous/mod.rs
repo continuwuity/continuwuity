@@ -55,6 +55,14 @@ impl Service {
 
 	fn create_token() -> String { utils::random_string(Self::TOKEN_LENGTH) }
 
+	fn is_valid_opaque_id(id: &str) -> bool {
+		!id.is_empty()
+			&& id.len() <= 255
+			&& id
+				.bytes()
+				.all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~'))
+	}
+
 	/// Lock and fetch an unexpired rendezvous session.
 	fn lock_session(&self, id: &str) -> Result<SyncMappedMutexGuard<'_, Session>> {
 		// We don't clear out expired sessions manually, the LRU cache will
@@ -103,6 +111,12 @@ impl Service {
 		sequence_token: String,
 		data: String,
 	) -> Result<update_rendezvous_session::msc4388::Response> {
+		if !Self::is_valid_opaque_id(transaction.as_str()) {
+			return Err!(Request(InvalidParam(
+				"Transaction ID does not comply with the opaque identifier grammar"
+			)));
+		}
+
 		let mut session = self.lock_session(id)?;
 
 		// If the provided transaction ID was used already, we have to return
