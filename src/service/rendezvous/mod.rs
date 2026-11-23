@@ -1,6 +1,6 @@
 use std::{
 	sync::Arc,
-	time::{Duration, SystemTime},
+	time::{Duration, Instant},
 };
 
 use conduwuit::{Err, Result, SyncMappedMutexGuard, SyncMutex, SyncMutexGuard, at, err, utils};
@@ -19,7 +19,7 @@ pub struct Service {
 
 struct Session {
 	data: String,
-	created_at: SystemTime,
+	created_at: Instant,
 	last_sequence_token: String,
 	transaction_sequences: LruCache<OwnedTransactionId, String>,
 }
@@ -27,14 +27,23 @@ struct Session {
 impl Session {
 	const SAVED_TRANSACTION_SEQUENCES: usize = 256;
 
-	fn new(data: String, sequence_token: String) -> Self {
+	fn new(data: String, sequence_token: String, now: Instant) -> Self {
 		Self {
 			data,
-			created_at: SystemTime::now(),
+			created_at: now,
 			last_sequence_token: sequence_token,
 			transaction_sequences: LruCache::new(Self::SAVED_TRANSACTION_SEQUENCES),
 		}
 	}
+
+	fn time_remaining(&self, now: Instant) -> Option<Duration> {
+		let age = now.saturating_duration_since(self.created_at);
+		(age < Service::SESSION_MAX_AGE)
+			.then(|| Service::SESSION_MAX_AGE.saturating_sub(age))
+			.filter(|remaining| !remaining.is_zero())
+	}
+
+	fn is_expired(&self, now: Instant) -> bool { self.time_remaining(now).is_none() }
 }
 
 impl crate::Service for Service {
@@ -65,16 +74,20 @@ impl Service {
 
 	/// Lock and fetch an unexpired rendezvous session.
 	fn lock_session(&self, id: &str) -> Result<SyncMappedMutexGuard<'_, Session>> {
+		self.lock_session_at(id, Instant::now())
+	}
+
+	fn lock_session_at(
+		&self,
+		id: &str,
+		now: Instant,
+	) -> Result<SyncMappedMutexGuard<'_, Session>> {
 		// We don't clear out expired sessions manually, the LRU cache will
 		// evict them over time
 		SyncMutexGuard::try_map_or_err(self.sessions.lock(), |sessions| {
 			sessions
 				.get_mut(id)
-				.filter(|session| {
-					SystemTime::now()
-						.duration_since(session.created_at)
-						.is_ok_and(|duration| duration < Self::SESSION_MAX_AGE)
-				})
+				.filter(|session| !session.is_expired(now))
 				.ok_or_else(|| err!(Request(NotFound("Unknown session"))))
 		})
 		.map_err(at!(1))
@@ -94,7 +107,7 @@ impl Service {
 
 		self.sessions
 			.lock()
-			.insert(id.clone(), Session::new(data, sequence_token.clone()));
+			.insert(id.clone(), Session::new(data, sequence_token.clone(), Instant::now()));
 
 		Ok(create_rendezvous_session::msc4388::Response::new(
 			id,
@@ -151,13 +164,12 @@ impl Service {
 
 	/// Look up a rendezvous session by ID.
 	pub fn get_session(&self, id: &str) -> Result<get_rendezvous_session::msc4388::Response> {
-		let session = self.lock_session(id)?;
+		let now = Instant::now();
+		let session = self.lock_session_at(id, now)?;
 
-		let session_age = SystemTime::now()
-			.duration_since(session.created_at)
-			.unwrap_or(Duration::MAX);
-
-		let session_time_remaining = Self::SESSION_MAX_AGE.saturating_sub(session_age);
+		let session_time_remaining = session
+			.time_remaining(now)
+			.unwrap_or_else(|| Duration::from_millis(1));
 
 		Ok(get_rendezvous_session::msc4388::Response::new(
 			session.last_sequence_token.clone(),
