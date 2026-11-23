@@ -14,7 +14,7 @@ use conduwuit::{
 		to_canonical_object,
 	},
 };
-use futures::{StreamExt, stream::FuturesUnordered};
+use futures::StreamExt;
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName,
 	api::federation::discovery::{
@@ -121,7 +121,7 @@ async fn query_inner(
 		total_queried_servers > MAX_SERVERS_PER_QUERY || total_queried_keys > MAX_KEYS_PER_QUERY;
 
 	debug_info!("Fetching {total_queried_keys} keys across {} servers", body.len());
-	let mut futs: FuturesUnordered<_> = FuturesUnordered::new();
+	let mut futs: tokio::task::JoinSet<_> = tokio::task::JoinSet::new();
 
 	// If we're on the v2 endpoint, we aren't allowed to reject the request.
 	// To avoid overloading the server, we'll apply a semaphore to limit how
@@ -133,17 +133,20 @@ async fn query_inner(
 		None
 	};
 	for (server_name, queries) in body.clone() {
-		futs.push(acquire_keys_as_notary(
-			services.server_keys.clone(),
-			services.globals.server_name().to_owned(),
-			server_name,
-			queries,
-			start.1,
-			sem.clone(),
-		));
+		futs.spawn_on(
+			acquire_keys_as_notary(
+				services.server_keys.clone(),
+				services.globals.server_name().to_owned(),
+				server_name,
+				queries,
+				start.1,
+				sem.clone(),
+			),
+			services.server.runtime(),
+		);
 	}
 	let mut response = Vec::with_capacity(total_queried_keys);
-	while let Some(v) = futs.next().await {
+	while let Some(Ok(v)) = futs.join_next().await {
 		response.extend(v);
 	}
 
