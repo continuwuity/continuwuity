@@ -1,7 +1,10 @@
+use std::collections::{HashMap, hash_map::Entry};
+
 use axum::extract::State;
 use conduwuit::{
 	Err, EventTypeExt, Result, debug, debug_warn, err, info,
 	matrix::{
+		StateKey,
 		event::gen_event_id,
 		pdu::{PartialPdu, PduEvent},
 	},
@@ -12,12 +15,12 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
-	RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
+	OwnedUserId, RoomId, RoomVersionId, UserId,
 	api::{
 		client::knock::knock_room,
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
-		federation,
+		federation::{self, membership::RawStrippedState},
 	},
 	canonical_json::to_canonical_value,
 	events::{
@@ -31,7 +34,7 @@ use service::{
 };
 
 use super::banned_room_check;
-use crate::{Ruma, server::validate_partial_membership_state};
+use crate::{Ruma, server::validate_partial_membership_event};
 
 /// # `POST /_matrix/client/*/knock/{roomIdOrAlias}`
 ///
@@ -53,30 +56,42 @@ pub(crate) async fn knock_room_route(
 				.await?;
 
 			let mut servers = body.via.clone();
-			servers.extend(
-				services
-					.rooms
-					.state_cache
-					.servers_invite_via(&room_id)
-					.collect::<Vec<_>>()
-					.await,
-			);
+			if servers.is_empty() {
+				debug!("No via servers provided for knock, injecting some.");
+				servers.extend(
+					services
+						.rooms
+						.state_cache
+						.servers_invite_via(&room_id)
+						.collect::<Vec<_>>()
+						.await,
+				);
 
-			servers.extend(
-				services
+				let invite_state = services
 					.rooms
 					.state_cache
 					.invite_state(sender_user, &room_id)
 					.await
-					.unwrap_or_default()
-					.iter()
-					.filter_map(|event| event.get_field("sender").ok().flatten())
-					.filter_map(|sender: &str| UserId::parse(sender).ok())
-					.map(|user| user.server_name().to_owned()),
-			);
+					.unwrap_or_default();
+				let knock_state = services
+					.rooms
+					.state_cache
+					.knock_state(sender_user, &room_id)
+					.await
+					.unwrap_or_default();
 
-			if let Some(server) = room_id.server_name() {
-				servers.push(server.to_owned());
+				servers.extend(
+					invite_state
+						.iter()
+						.chain(knock_state.iter())
+						.filter_map(|event| event.get_field("sender").ok().flatten())
+						.filter_map(|sender: &str| UserId::parse(sender).ok())
+						.map(|user| user.server_name().to_owned()),
+				);
+
+				if let Some(server) = room_id.server_name() {
+					servers.push(server.to_owned());
+				}
 			}
 
 			servers.sort_unstable();
@@ -98,20 +113,28 @@ pub(crate) async fn knock_room_route(
 
 			let addl_via_servers = services.rooms.state_cache.servers_invite_via(&room_id);
 
-			let addl_state_servers = services
+			let addl_invite_state = services
 				.rooms
 				.state_cache
 				.invite_state(sender_user, &room_id)
 				.await
 				.unwrap_or_default();
+			let addl_knock_state = services
+				.rooms
+				.state_cache
+				.knock_state(sender_user, &room_id)
+				.await
+				.unwrap_or_default();
 
-			let mut addl_servers: Vec<_> = addl_state_servers
+			let mut addl_servers: Vec<_> = addl_invite_state
 				.iter()
+				.chain(addl_knock_state.iter())
 				.map(|event| event.get_field("sender"))
 				.filter_map(FlatOk::flat_ok)
 				.map(|user: OwnedUserId| user.server_name().to_owned())
 				.stream()
 				.chain(addl_via_servers)
+				.chain(body.via.iter().cloned().stream())
 				.collect()
 				.await;
 
@@ -138,72 +161,69 @@ async fn knock_room_by_id_helper(
 ) -> Result<knock_room::v3::Response> {
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
-	if services
-		.rooms
-		.state_cache
-		.is_invited(sender_user, room_id)
-		.await
-	{
-		debug_warn!("{sender_user} is already invited in {room_id} but attempted to knock");
-		return Err!(Request(Forbidden(
-			"You cannot knock on a room you are already invited/accepted to."
-		)));
-	}
-
-	if services
-		.rooms
-		.state_cache
-		.is_joined(sender_user, room_id)
-		.await
-	{
-		debug_warn!("{sender_user} is already joined in {room_id} but attempted to knock");
-		return Err!(Request(Forbidden("You cannot knock on a room you are already joined in.")));
-	}
-
-	if services
-		.rooms
-		.state_cache
-		.is_knocked(sender_user, room_id)
-		.await
-	{
-		debug_warn!("{sender_user} is already knocked in {room_id}");
-		return Ok(knock_room::v3::Response::new(room_id.into()));
-	}
-
-	if let Ok(membership) = services
-		.rooms
-		.state_accessor
-		.get_member(room_id, sender_user)
-		.await
-	{
-		if membership.membership == MembershipState::Ban {
-			debug_warn!("{sender_user} is banned from {room_id} but attempted to knock");
-			return Err!(Request(Forbidden("You cannot knock on a room you are banned from.")));
-		}
-	}
-
 	let server_in_room = services
 		.rooms
 		.state_cache
 		.server_in_room(services.globals.server_name(), room_id)
 		.await;
 
-	if !server_in_room
-		&& !servers
-			.iter()
-			.any(|sn| !services.globals.server_is_ours(sn))
-	{
-		return Err!(Request(NotFound(
-			"Room {room_id} not found and no remote servers were provided to discover it"
-		)));
-	} else if server_in_room {
+	// Only check our known membership if we're already in the room.
+	if server_in_room {
+		if services
+			.rooms
+			.state_cache
+			.is_invited(sender_user, room_id)
+			.await
+		{
+			debug_warn!("{sender_user} is already invited in {room_id} but attempted to knock");
+			return Err!(Request(Forbidden(
+				"You cannot knock on a room you are already invited/accepted to."
+			)));
+		}
+
+		if services
+			.rooms
+			.state_cache
+			.is_joined(sender_user, room_id)
+			.await
+		{
+			debug_warn!("{sender_user} is already joined in {room_id} but attempted to knock");
+			return Err!(Request(Forbidden(
+				"You cannot knock on a room you are already joined in."
+			)));
+		}
+
+		if let Ok(membership) = services
+			.rooms
+			.state_accessor
+			.get_member(room_id, sender_user)
+			.await
+			&& membership.membership == MembershipState::Ban
+		{
+			debug_warn!("{sender_user} is banned from {room_id} but attempted to knock");
+			return Err!(Request(Forbidden("You cannot knock on a room you are banned from.")));
+		}
+
 		// Local knocks can't fail unless the room is corrupted, so we don't
 		// fall back to remote knocks like we do with remote joins.
 		knock_room_helper_local(services, sender_user, room_id, reason, state_lock)
 			.boxed()
 			.await?;
 	} else {
-		knock_room_helper_remote(services, sender_user, room_id, reason, servers)
+		drop(state_lock);
+		let remote_servers: Vec<_> = servers
+			.iter()
+			.filter(|sn| !services.globals.server_is_ours(sn))
+			.cloned()
+			.collect();
+
+		if remote_servers.is_empty() {
+			return Err!(Request(NotFound(
+				"Room {room_id} not found and no remote servers were provided to discover it"
+			)));
+		}
+
+		knock_room_helper_remote(services, sender_user, room_id, reason, &remote_servers)
 			.boxed()
 			.await?;
 	}
@@ -231,7 +251,7 @@ async fn knock_room_helper_local(
 	let mut content = RoomMemberEventContent::new(MembershipState::Knock);
 	content.displayname = services.users.displayname(sender_user).await.ok();
 	content.avatar_url = services.users.avatar_url(sender_user).await.ok();
-	content.reason.clone_from(&reason.clone());
+	content.reason = reason;
 
 	services
 		.rooms
@@ -325,32 +345,82 @@ async fn knock_room_helper_remote(
 		.short
 		.get_or_create_shortroomid(room_id)
 		.await;
-	let (create_event_id, mut state) = validate_partial_membership_state(
-		services,
-		&send_knock_response.knock_room_state,
-		&room_version_rules,
-		room_id.to_owned(),
-	)
-	.await?;
-	state.insert(StateEventType::RoomMember.with_state_key(sender_user.as_str()), stub);
-	let create_event_json = state
-		.get(&StateEventType::RoomCreate.with_state_key(""))
-		.expect("must have create event in knock state by this point");
+	let mut state: HashMap<(StateEventType, StateKey), CanonicalJsonObject> =
+		HashMap::with_capacity(send_knock_response.knock_room_state.len().saturating_add(1));
+	let mut create_event: Option<(OwnedEventId, CanonicalJsonObject)> = None;
 
-	// Much like when receiving an invite over federation, if we're in this room
-	// we'll receive the knock PDU over /send. Otherwise, we need to add it as
-	// an outlier. Since this function isn't a fallback when local knocks fail,
-	// we can do this unconditionally.
+	for (idx, event) in send_knock_response.knock_room_state.iter().enumerate() {
+		let (state_event_id, key, state_event_json) = match validate_partial_membership_event(
+			services,
+			event,
+			&room_version_rules,
+			room_id,
+			idx,
+		)
+		.await
+		{
+			| Ok(res) => res,
+			| Err(e) => {
+				debug_warn!(%idx, "Dropping invalid event from knock_room_state: {e}");
+				continue;
+			},
+		};
+
+		match state.entry(key) {
+			| Entry::Occupied(entry) => {
+				debug_warn!(
+					key=?entry.key(),
+					"Dropping duplicate state event from knock_room_state"
+				);
+			},
+			| Entry::Vacant(entry) => {
+				if entry.key().0 == StateEventType::RoomCreate {
+					create_event = Some((state_event_id, state_event_json.clone()));
+				}
+				entry.insert(state_event_json);
+			},
+		}
+	}
+
+	if let Some((create_event_id, create_event_json)) = &create_event {
+		state.retain(|key, event_json| {
+			if let Err(e) = service::rooms::event_handler::Service::pdu_format_check_1(
+				event_json,
+				&room_version_rules,
+				create_event_id,
+			) {
+				debug_warn!(
+					?key,
+					"Dropping event from knock_room_state violating room event format: {e}"
+				);
+				return false;
+			}
+			true
+		});
+
+		// Much like when receiving an invite over federation, if we're in this
+		// room we'll receive the knock PDU over /send. Otherwise, we need to
+		// add it as an outlier. Since this function isn't a fallback when local
+		// knocks fail, we can do this unconditionally.
+		services
+			.rooms
+			.outlier
+			.add_pdu_outlier(create_event_id, create_event_json);
+	}
+
+	state.insert(StateEventType::RoomMember.with_state_key(sender_user.as_str()), stub);
+
+	let knocked_state = state
+		.into_values()
+		.filter_map(|event_json| serde_json::value::to_raw_value(&event_json).ok())
+		.map(RawStrippedState::Pdu)
+		.collect();
+
 	info!("Saving knock data");
 	services
 		.rooms
-		.outlier
-		.add_pdu_outlier(&create_event_id, create_event_json);
-	services.rooms.state_cache.mark_as_knocked(
-		sender_user,
-		room_id,
-		Some(state.values().collect()),
-	);
+		.state_cache
+		.mark_as_knocked(sender_user, room_id, knocked_state);
 	services
 		.rooms
 		.state_cache

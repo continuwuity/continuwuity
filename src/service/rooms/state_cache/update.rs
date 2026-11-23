@@ -4,7 +4,7 @@ use conduwuit::{Err, Event, Pdu, Result, is_not_empty, utils::ReadyExt};
 use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
-	CanonicalJsonObject, OwnedServerName, RoomId, UserId,
+	OwnedServerName, RoomId, UserId,
 	api::federation::membership::RawStrippedState,
 	events::{
 		GlobalAccountDataEventType, RoomAccountDataEventType, StateEventType,
@@ -120,6 +120,18 @@ impl super::Service {
 
 				self.mark_as_invited(user_id, room_id, pdu.sender(), invite_state, None)
 					.await?;
+			},
+			| MembershipState::Knock => {
+				let knocked_state = if is_local {
+					self.services
+						.state
+						.summary_stripped(pdu, room_id, user_id, false)
+						.await
+				} else {
+					vec![]
+				};
+
+				self.mark_as_knocked(user_id, room_id, knocked_state);
 			},
 			| MembershipState::Leave | MembershipState::Ban => {
 				self.mark_as_left(user_id, room_id, Some(pdu.clone())).await;
@@ -272,7 +284,7 @@ impl super::Service {
 		&self,
 		user_id: &UserId,
 		room_id: &RoomId,
-		knocked_state: Option<Vec<&CanonicalJsonObject>>,
+		knocked_state: Vec<RawStrippedState>,
 	) {
 		let userroom_id = (user_id, room_id);
 		let userroom_id = serialize_key(userroom_id).expect("failed to serialize userroom_id");
@@ -282,7 +294,7 @@ impl super::Service {
 
 		self.db
 			.userroomid_knockedstate
-			.raw_put(&userroom_id, Json(knocked_state.unwrap_or_default()));
+			.raw_put(&userroom_id, Json(knocked_state));
 		self.db
 			.roomuserid_knockedcount
 			.raw_aput::<8, _, _>(&roomuser_id, self.services.globals.next_count().unwrap());
