@@ -55,7 +55,7 @@ struct Services {
 	config: Dep<config::Service>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SessionInfo {
 	pub client_id: String,
 	#[serde(deserialize_with = "client_metadata::btreeset_skip_err")]
@@ -64,6 +64,8 @@ pub struct SessionInfo {
 	temporary_scopes: BTreeSet<OAuthClientScope>,
 	#[serde(default)]
 	current_refresh_token: String,
+	#[serde(default)]
+	previous_refresh_token: Option<String>,
 }
 
 impl SessionInfo {
@@ -244,6 +246,24 @@ impl Service {
 			.await
 			.deserialized::<SessionInfo>()
 			.ok()
+	}
+
+	/// Clear a session's previous refresh token, if it has one.
+	pub fn clear_previous_refresh_token(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+		session_info: &SessionInfo,
+	) {
+		if session_info.previous_refresh_token.is_some() {
+			let mut session_info = session_info.clone();
+
+			session_info.previous_refresh_token = None;
+
+			self.db
+				.userdeviceid_oauthsessioninfo
+				.put((user_id, device_id), Json(session_info));
+		}
 	}
 
 	pub async fn request_authorization_code(
@@ -645,6 +665,7 @@ impl Service {
 			SessionInfo {
 				client_id: client_id.clone(),
 				current_refresh_token: Self::generate_token(),
+				previous_refresh_token: None,
 				scopes: requested_scopes.scopes,
 				temporary_scopes: BTreeSet::new(),
 			}
@@ -702,15 +723,55 @@ impl Service {
 
 		assert_eq!(&client_id, &session_info.client_id, "session info client id mismatch");
 
+		let new_refresh_token = Self::generate_token();
+
+		if refresh_token == session_info.current_refresh_token {
+			// The client is refreshing with their current refresh token.
+			// We need to generate a new refresh token and save this token as
+			// the previous one.
+
+			session_info
+				.current_refresh_token
+				.clone_from(&new_refresh_token);
+
+			// Remove the old previous token if it's set. This can only happen
+			// if the client decides to refresh twice in a row without using its
+			// new access token, since we'll also do this when the new access
+			// token is used for the first time.
+			if let Some(previous_refresh_token) = session_info.previous_refresh_token {
+				self.db
+					.refreshtoken_refreshtokeninfo
+					.remove(&previous_refresh_token);
+			}
+
+			session_info.previous_refresh_token = Some(refresh_token);
+		} else if Some(&refresh_token) == session_info.previous_refresh_token.as_ref() {
+			// The client is refreshing with their previous refresh token,
+			// probably because they didn't get the new one we made for them. We
+			// need to make a second new one, but we don't touch the existing
+			// previous one in case they don't get the second new one either.
+
+			// Wipe the current token, we're going to make a new one.
+			self.db
+				.refreshtoken_refreshtokeninfo
+				.remove(&session_info.current_refresh_token);
+
+			session_info
+				.current_refresh_token
+				.clone_from(&new_refresh_token);
+		} else {
+			// The client is trying to use a refresh token that isn't their
+			// current or previous one, but still has information in the
+			// database. This is definitely not a legal state, so we need to
+			// bail out.
+			panic!("refresh token is not current or previous for its session");
+		}
+
 		// TODO: this doesn't include the device ID "scope", do any clients rely
 		// on that?
 		let scope = session_info.scopes.iter().join(" ");
 
 		let new_access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
-		let new_refresh_token = Self::generate_token();
-		session_info
-			.current_refresh_token
-			.clone_from(&new_refresh_token);
 
 		self.services
 			.users
@@ -729,8 +790,6 @@ impl Service {
 			Json(session_info),
 		);
 
-		self.db.refreshtoken_refreshtokeninfo.remove(&refresh_token);
-		drop(refresh_token);
 		self.db
 			.refreshtoken_refreshtokeninfo
 			.raw_put(&new_refresh_token, Json(refresh_token_info));

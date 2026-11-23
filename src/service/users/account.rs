@@ -632,6 +632,12 @@ impl super::Service {
 			}
 		}
 
+		// Discard this device's previous token entry if the current token
+		// isn't expired.
+		self.db
+			.userdeviceid_previoustoken
+			.del((&user_id, &device_id));
+
 		Some((user_id, device_id, AccessTokenStatus::Valid))
 	}
 

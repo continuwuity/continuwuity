@@ -184,8 +184,13 @@ impl super::Service {
 		// Remove old token
 		if let Ok(old_token) = self.db.userdeviceid_token.qry(&key).await {
 			self.db.token_userdeviceid.remove(&old_token);
-			self.db.userdeviceid_tokenexpires.remove(&old_token);
 			// It will be removed from userdeviceid_token by the insert later
+
+			// Save the previous token only if we don't already have one saved
+			// for this device.
+			if !self.db.userdeviceid_previoustoken.contains(&key).await {
+				self.db.userdeviceid_previoustoken.put_raw(key, &old_token);
+			}
 		}
 
 		// Assign token to user device combination
@@ -205,6 +210,17 @@ impl super::Service {
 		}
 
 		Ok(())
+	}
+
+	/// Returns whether the provided token was previously used by a device
+	/// before a token refresh, and therefore should cause a soft-logout.
+	pub async fn is_previous_token(&self, token: &str) -> bool {
+		self.db
+			.userdeviceid_previoustoken
+			.stream::<Ignore, String>()
+			.ignore_err()
+			.ready_any(|(_, previous_token)| previous_token == token)
+			.await
 	}
 
 	/// Pushes a new to-device event into a device's inbox.

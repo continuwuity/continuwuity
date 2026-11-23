@@ -408,6 +408,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "userdeviceid_previoustoken",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "userdevicesessionid_uiaainfo",
 		..descriptor::RANDOM_SMALL
 	},

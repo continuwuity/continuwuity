@@ -319,6 +319,19 @@ async fn check_access_token(
 			));
 		}
 
+		let session_info = services
+			.oauth
+			.get_session_info_for_device(&sender_user, &sender_device)
+			.await;
+
+		if let Some(session_info) = &session_info {
+			services.oauth.clear_previous_refresh_token(
+				&sender_user,
+				&sender_device,
+				session_info,
+			);
+		}
+
 		// Locked users can only use /logout and /logout/all
 		if services
 			.users
@@ -332,12 +345,6 @@ async fn check_access_token(
 				return Err!(Request(UserLocked("Your account is locked.")));
 			}
 		}
-
-		let session_info = services
-			.oauth
-			.get_session_info_for_device(&sender_user, &sender_device)
-			.await
-			.map(Box::new);
 
 		// Make sure the user has the right scopes to use the route
 		let mut user_scopes = if let Some(session_info) = &session_info {
@@ -416,6 +423,15 @@ async fn check_access_token(
 			sender_device,
 			appservice_info: Box::new(appservice_info),
 		})
+	} else if services.users.is_previous_token(token).await {
+		// Return a soft-logout for previous tokens. This is necessary
+		// to make token refreshing idempotent.
+
+		Err(Error::Request(
+			ErrorKind::UnknownToken(assign!(UnknownTokenErrorData::new(), { soft_logout: true })),
+			"This token has expired".into(),
+			StatusCode::UNAUTHORIZED,
+		))
 	} else {
 		Err(Error::Request(
 			ErrorKind::UnknownToken(UnknownTokenErrorData::new()),
