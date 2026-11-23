@@ -84,7 +84,7 @@ impl AccessCheck<'_> {
 ///
 /// A resulting tuple of (PDU JSON, target membership state, sender, recipient).
 pub(crate) async fn validate_any_membership_event(
-	services: &crate::State,
+	services: &Services,
 	body: &serde_json::value::RawValue,
 	room_version_rules: &RoomVersionRules,
 	create_event_id: OwnedEventId,

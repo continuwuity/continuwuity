@@ -22,6 +22,7 @@ use ruma::{
 	room_version_rules::RoomVersionRules,
 };
 use serde::Deserialize;
+use service::Services;
 
 use crate::{Ruma, server::utils::validate_any_membership_event};
 
@@ -45,7 +46,7 @@ pub(crate) async fn create_invite_route(
 }
 
 async fn create_invite(
-	services: &crate::State,
+	services: &Services,
 	body: Ruma<create_invite::v2::Request>,
 ) -> Result<create_invite::v2::Response> {
 	if !services.server.supported_room_version(&body.room_version) {
@@ -79,7 +80,7 @@ async fn create_invite(
 		via=?body.via,
 		"Validating invite room state for invite request"
 	);
-	let (create_event_id, state) = validate_invite_state(
+	let (create_event_id, state) = validate_partial_membership_state(
 		services,
 		&body.invite_room_state,
 		&room_version_rules,
@@ -260,7 +261,7 @@ async fn create_invite(
 ///
 /// [spec]: https://spec.matrix.org/v1.19/server-server-api/#put_matrixfederationv2inviteroomideventid
 async fn validate_invite_membership_event(
-	services: &crate::State,
+	services: &Services,
 	body: &serde_json::value::RawValue,
 	room_version_rules: &RoomVersionRules,
 	origin: &ServerName,
@@ -299,30 +300,30 @@ async fn validate_invite_membership_event(
 	Ok((pdu, sender_user, recipient_user))
 }
 
-/// Validates the *invite state* of an invite request, per the steps listed
-/// under the endpoint's [spec].
+/// Validates the *invite state* of an invite request or **knock state** of a
+/// knock response, per the steps listed under the endpoint's [spec].
 ///
 /// Returns the create event's event ID, and the partial state map.
 ///
 /// [spec]: https://spec.matrix.org/v1.19/server-server-api/#put_matrixfederationv2inviteroomideventid
-async fn validate_invite_state(
-	services: &crate::State,
+pub(crate) async fn validate_partial_membership_state(
+	services: &Services,
 	invite_state: &[RawStrippedState],
 	room_version_rules: &RoomVersionRules,
 	room_id: OwnedRoomId,
 ) -> Result<(OwnedEventId, HashMap<(StateEventType, StateKey), CanonicalJsonObject>)> {
-	trace!(?invite_state, "Raw invite state");
+	trace!(?invite_state, "Raw partial membership state");
 	let mut invite_state_map: HashMap<(StateEventType, StateKey), _> =
 		HashMap::with_capacity(invite_state.len());
 	let mut create_event_id: Option<OwnedEventId> = None;
 
 	for (idx, invite_state_event) in invite_state.iter().cloned().enumerate() {
-		trace!(%idx, ?invite_state_event, "Invite state event");
+		trace!(%idx, ?invite_state_event, "Partial membership state event");
 		// Stripped state hasn't been sent over federation since v1.16.
 		let RawStrippedState::Pdu(raw_pdu) = invite_state_event else {
-			debug!(%idx, "Invite state event is not a PDU");
+			debug!(%idx, "Partial membership state event is not a PDU");
 			return Err!(Request(InvalidParam(
-				"PDU in invite state (index {idx}) violates the room event format"
+				"PDU in partial membership state (index {idx}) violates the room event format"
 			)));
 		};
 		let (state_event_room_id, state_event_id, state_event_json) = services
@@ -331,14 +332,16 @@ async fn validate_invite_state(
 			.parse_incoming_pdu(&raw_pdu, Some(room_version_rules))
 			.await
 			.map_err(|e| {
-				err!(Request(InvalidParam(debug_warn!("Invalid PDU in invite state: {e}"))))
+				err!(Request(InvalidParam(debug_warn!(
+					"Invalid PDU in partial membership state: {e}"
+				))))
 			})?;
 
 		if state_event_room_id != room_id {
 			return Err!(Request(InvalidParam(debug_warn!(
 				%state_event_room_id,
 				%room_id,
-				"PDU in invite state ({state_event_id}) belongs to the wrong room"
+				"PDU in partial membership state ({state_event_id}) belongs to the wrong room"
 			))));
 		}
 
@@ -352,12 +355,12 @@ async fn validate_invite_state(
 
 		let Some(state_key) = state_event_json.get("state_key").and_then(|k| k.as_str()) else {
 			return Err!(Request(InvalidParam(debug_info!(
-				"PDU in invite state ({state_event_id}) is not a state event"
+				"PDU in partial membership state ({state_event_id}) is not a state event"
 			))));
 		};
 		let Some(event_type) = state_event_json.get("type").and_then(|k| k.as_str()) else {
 			return Err!(Request(InvalidParam(debug_warn!(
-				"PDU in invite state ({state_event_id}) is not an event?"
+				"PDU in partial membership state ({state_event_id}) is not an event?"
 			))));
 		};
 
@@ -374,7 +377,7 @@ async fn validate_invite_state(
 					let pdu_event =
 						PduEvent::from_id_val(&state_event_id, state_event_json.clone())
 							.expect("must be able to create pdu event from event json");
-					debug!("Validating discovered create event in invite room state");
+					debug!("Validating discovered create event in partial membership room state");
 					validate_invite_create_event(&pdu_event, room_version_rules).await?;
 					create_event_id = Some(state_event_id);
 				}
@@ -385,7 +388,7 @@ async fn validate_invite_state(
 	let Some(create_event_id) = create_event_id else {
 		return Err!(Request(InvalidParam(debug_warn!(
 			parsed_state=?invite_state_map,
-			"Invite state does not contain the m.room.create event"
+			"Partial membership state does not contain the m.room.create event"
 		))));
 	};
 	invite_state_map.iter().try_for_each(|(key, event_json)| {
@@ -396,7 +399,8 @@ async fn validate_invite_state(
 		)
 		.map_err(|e| {
 			err!(Request(InvalidParam(
-				"PDU in invite state for {key:?} violates the room event format: {e}"
+				"PDU in partial membership state state for {key:?} violates the room event \
+				 format: {e}"
 			)))
 		})
 	})?;

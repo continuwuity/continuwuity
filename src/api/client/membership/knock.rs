@@ -1,10 +1,7 @@
-use std::collections::{HashMap, hash_map::Entry};
-
 use axum::extract::State;
 use conduwuit::{
 	Err, EventTypeExt, Result, debug, debug_warn, err, info,
 	matrix::{
-		StateKey,
 		event::gen_event_id,
 		pdu::{PartialPdu, PduEvent},
 	},
@@ -15,20 +12,18 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
-	OwnedUserId, RoomId, RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
+	RoomVersionId, UserId,
 	api::{
 		client::knock::knock_room,
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation,
-		federation::membership::RawStrippedState,
 	},
 	canonical_json::to_canonical_value,
 	events::{
 		StateEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
-	room_version_rules::RoomVersionRules,
 };
 use service::{
 	Services,
@@ -36,7 +31,7 @@ use service::{
 };
 
 use super::banned_room_check;
-use crate::Ruma;
+use crate::{Ruma, server::validate_partial_membership_state};
 
 /// # `POST /_matrix/client/*/knock/{roomIdOrAlias}`
 ///
@@ -330,7 +325,7 @@ async fn knock_room_helper_remote(
 		.short
 		.get_or_create_shortroomid(room_id)
 		.await;
-	let (create_event_id, mut state) = validate_knock_state(
+	let (create_event_id, mut state) = validate_partial_membership_state(
 		services,
 		&send_knock_response.knock_room_state,
 		&room_version_rules,
@@ -365,119 +360,6 @@ async fn knock_room_helper_remote(
 	services.sync.wake(sender_user).await;
 
 	Ok(())
-}
-
-/// Validates and builds a state map based on the returned knock state.
-///
-/// This is very similar to
-/// `conduwuit_api::server::invite::validate_invite_state`, but with fixed up
-/// error messages.
-///
-/// Returns the create event's event ID, and the partial state map.
-// TODO(nex): this function is LITERALLY the same as validate_invite state,
-// except the errors and logs say "knock" instead of "invite". There's probably
-// a more elegant way to do this without duplicating the ENTIRE function.
-async fn validate_knock_state(
-	services: &Services,
-	knock_state: &[RawStrippedState],
-	room_version_rules: &RoomVersionRules,
-	room_id: OwnedRoomId,
-) -> Result<(OwnedEventId, HashMap<(StateEventType, StateKey), CanonicalJsonObject>)> {
-	trace!(?knock_state, "Raw knock state");
-	let mut knock_state_map: HashMap<(StateEventType, StateKey), _> =
-		HashMap::with_capacity(knock_state.len());
-	let mut create_event_id: Option<OwnedEventId> = None;
-
-	for (idx, knock_state_event) in knock_state.iter().cloned().enumerate() {
-		trace!(%idx, ?knock_state_event, "Knock state event");
-		// Stripped state hasn't been sent over federation since v1.16.
-		let RawStrippedState::Pdu(raw_pdu) = knock_state_event else {
-			debug!(%idx, "Knock state event is not a PDU");
-			return Err!(Request(InvalidParam(
-				"PDU in knock state (index {idx}) violates the room event format"
-			)));
-		};
-		let (state_event_room_id, state_event_id, state_event_json) = services
-			.rooms
-			.event_handler
-			.parse_incoming_pdu(&raw_pdu, Some(room_version_rules))
-			.await
-			.map_err(|e| {
-				err!(Request(InvalidParam(debug_warn!("Invalid PDU in knock state: {e}"))))
-			})?;
-
-		if state_event_room_id != room_id {
-			return Err!(Request(InvalidParam(debug_warn!(
-				%state_event_room_id,
-				%room_id,
-				"PDU in knock state ({state_event_id}) belongs to the wrong room"
-			))));
-		}
-
-		services
-			.server_keys
-			.verify_event_json(&state_event_json, room_version_rules)
-			.await
-			.map_err(|e| {
-				err!(Request(InvalidParam("Signature verification failed on knock event: {e}")))
-			})?;
-
-		let Some(state_key) = state_event_json.get("state_key").and_then(|k| k.as_str()) else {
-			return Err!(Request(InvalidParam(debug_info!(
-				"PDU in knock state ({state_event_id}) is not a state event"
-			))));
-		};
-		let Some(event_type) = state_event_json.get("type").and_then(|k| k.as_str()) else {
-			return Err!(Request(InvalidParam(debug_warn!(
-				"PDU in knock state ({state_event_id}) is not an event?"
-			))));
-		};
-
-		let key = StateEventType::from(event_type).with_state_key(state_key);
-		match knock_state_map.entry(key) {
-			| Entry::Occupied(entry) =>
-				return Err!(Request(InvalidParam(
-					"Duplicate state events in knock state for state key: {:?}",
-					entry.key(),
-				))),
-			| Entry::Vacant(entry) => {
-				if entry.key().0 == StateEventType::RoomCreate {
-					// Ensure this is a legal create event.
-					let pdu_event =
-						PduEvent::from_id_val(&state_event_id, state_event_json.clone())
-							.expect("must be able to create pdu event from event json");
-					debug!("Validating discovered create event in knock room state");
-					crate::server::invite::validate_invite_create_event(
-						&pdu_event,
-						room_version_rules,
-					)
-					.await?;
-					create_event_id = Some(state_event_id);
-				}
-				entry.insert(state_event_json);
-			},
-		}
-	}
-	let Some(create_event_id) = create_event_id else {
-		return Err!(Request(InvalidParam(debug_warn!(
-			parsed_state=?knock_state_map,
-			"Knock state does not contain the m.room.create event"
-		))));
-	};
-	knock_state_map.iter().try_for_each(|(key, event_json)| {
-		service::rooms::event_handler::Service::pdu_format_check_1(
-			event_json,
-			room_version_rules,
-			&create_event_id,
-		)
-		.map_err(|e| {
-			err!(Request(InvalidParam(
-				"PDU in knock state for {key:?} violates the room event format: {e}"
-			)))
-		})
-	})?;
-
-	Ok((create_event_id, knock_state_map))
 }
 
 async fn make_knock_request(
