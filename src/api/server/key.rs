@@ -53,7 +53,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_remote_server_keys_batch::v2::Request>,
 ) -> Result<get_remote_server_keys_batch::v2::Response> {
-	query_inner(&services, &body.server_keys, true)
+	query_inner(&services, body.body.server_keys, true)
 		.await
 		.map(get_remote_server_keys_batch::v2::Response::new)
 }
@@ -69,7 +69,7 @@ pub(crate) async fn get_remote_server_keys_batch_v3_unstable_route(
 	State(services): State<crate::State>,
 	body: Ruma<ruminuwuity::federation::notary::unstable::Request>,
 ) -> Result<ruminuwuity::federation::notary::unstable::Response> {
-	query_inner(&services, &body.server_keys, false)
+	query_inner(&services, body.body.server_keys, false)
 		.await
 		.map(ruminuwuity::federation::notary::unstable::Response::new)
 }
@@ -80,7 +80,7 @@ pub(crate) async fn get_remote_server_keys_batch_v3_unstable_route(
 /// will potentially apply a rate-limit to the request.
 async fn query_inner(
 	services: &crate::State,
-	body: &BTreeMap<OwnedServerName, BTreeMap<OwnedServerSigningKeyId, QueryCriteria>>,
+	body: BTreeMap<OwnedServerName, BTreeMap<OwnedServerSigningKeyId, QueryCriteria>>,
 	v2: bool,
 ) -> Result<Vec<Raw<ServerSigningKeys>>> {
 	let start = (Instant::now(), MilliSecondsSinceUnixEpoch::now());
@@ -129,7 +129,7 @@ async fn query_inner(
 		None
 	};
 
-	for (server_name, queries) in body.clone() {
+	for (server_name, queries) in body {
 		let server_keys = services.server_keys.clone();
 		let semaphore = semaphore.clone();
 
