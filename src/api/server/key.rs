@@ -7,7 +7,9 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, debug, debug_info, error,
+	Err, Result,
+	config::experiments::ToggledExperiment,
+	debug, debug_info, error,
 	utils::{
 		ReadyExt,
 		stream::{BroadbandExt, automatic_width},
@@ -103,7 +105,7 @@ async fn query_inner(
 		.values()
 		.fold(0_usize, |acc, q| acc.saturating_add(q.len().max(1)));
 
-	if !v2 {
+	if !v2 && services.config.experiments.msc4556.is_enabled() {
 		// If we're on the v3 endpoint, we can apply these limits explicitly.
 		if total_queried_servers > MAX_SERVERS_PER_QUERY {
 			return Err!(Request(TooLarge(

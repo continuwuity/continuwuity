@@ -118,6 +118,22 @@ pub struct Experiments {
 	/// default: false
 	#[serde(default)]
 	pub msc4494: SimpleExperiment,
+	/// MSC4556: Notary request limits
+	///
+	/// Creates a new key notary server route that has stricter limits on how
+	/// many signing keys can be requested in one query, to avoid a resource
+	/// exhaustion exploit vector in the existing key notary endpoint.
+	///
+	/// Continuwuity mitigates the exploit vector in the old notary endpoint
+	/// anyway, so you do not need to enable this to be protected.
+	///
+	/// Requires that remote servers support this MSC before it does anything.
+	///
+	/// https://github.com/matrix-org/matrix-spec-proposals/pull/4556
+	///
+	/// default: false
+	#[serde(default)]
+	pub msc4556: SimpleExperiment,
 	/// MSC4560: Stripped state requests over federation
 	///
 	/// Implements a more efficient way for servers to acquire and serve
