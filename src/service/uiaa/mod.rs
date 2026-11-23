@@ -348,8 +348,8 @@ impl Service {
 				.compatibility_mode()
 				.uiaa_available()
 		{
-			return Err!(Request(Unrecognized(
-				"User-interactive authentication is unavailable on this server"
+			return Err!(Request(Forbidden(
+				"User-interactive authentication is not available on this server."
 			)));
 		}
 
