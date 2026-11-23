@@ -2823,10 +2823,12 @@ pub struct OidcConfig {
 
 	/// Additional scopes Continuwuity should request from the IDP. This may be
 	/// necessary to access certain claims. Continuwuity always requests the
-	/// `openid` scope.
+	/// `openid` scope, regardless of the contents of this option,
+	/// and will also request the `profile` scope by default if this option is
+	/// not set.
 	///
-	/// default: []
-	#[serde(default)]
+	/// default: ["profile"]
+	#[serde(default = "default_additional_scopes")]
 	pub additional_scopes: Vec<Scope>,
 
 	/// Additional trusted audiences that Continuwuity will accept in the `aud`
@@ -3445,6 +3447,8 @@ fn default_profile_key_map() -> HashMap<String, String> {
 fn default_unauthenticated_request_ratelimit<K: Hash + Eq + Clone>() -> PerMinuteRatelimiter<K> {
 	PerMinuteRatelimiter::new(Quota::per_minute(30.try_into().unwrap()))
 }
+
+fn default_additional_scopes() -> Vec<Scope> { vec![Scope::new("profile".to_owned())] }
 
 // NOTE: This must be declared *after* every config struct in this file. The
 // example config generator writes sections in macro expansion order, and the

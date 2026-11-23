@@ -2582,10 +2582,12 @@
 
 # Additional scopes Continuwuity should request from the IDP. This may be
 # necessary to access certain claims. Continuwuity always requests the
-# `openid` scope.
+# `openid` scope, regardless of the contents of this option,
+# and will also request the `profile` scope by default if this option is
+# not set.
 #
 # env: CONTINUWUITY_OAUTH__OIDC__ADDITIONAL_SCOPES
-#additional_scopes = []
+#additional_scopes = ["profile"]
 
 # Additional trusted audiences that Continuwuity will accept in the `aud`
 # claim of the OIDC token returned by the IDP. If your identity
