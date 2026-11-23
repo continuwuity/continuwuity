@@ -12,8 +12,8 @@ use conduwuit::{
 	warn,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedUserId, ServerName,
-	UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId,
+	ServerName, UserId,
 	api::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation::membership::{RawStrippedState, create_invite},
@@ -300,8 +300,77 @@ async fn validate_invite_membership_event(
 	Ok((pdu, sender_user, recipient_user))
 }
 
-/// Validates the *invite state* of an invite request or **knock state** of a
-/// knock response, per the steps listed under the endpoint's [spec].
+/// Validates a single event from partial membership state (`invite_room_state`
+/// or `knock_room_state`), returning its event ID, `(event_type, state_key)`,
+/// and parsed canonical JSON.
+pub(crate) async fn validate_partial_membership_event(
+	services: &Services,
+	event: &RawStrippedState,
+	room_version_rules: &RoomVersionRules,
+	room_id: &RoomId,
+	idx: usize,
+) -> Result<(OwnedEventId, (StateEventType, StateKey), CanonicalJsonObject)> {
+	// Stripped state hasn't been sent over federation since v1.16.
+	let RawStrippedState::Pdu(raw_pdu) = event else {
+		debug!(%idx, "Partial membership state event is not a PDU");
+		return Err!(Request(InvalidParam(
+			"PDU in partial membership state (index {idx}) violates the room event format"
+		)));
+	};
+	let (state_event_room_id, state_event_id, state_event_json) = services
+		.rooms
+		.event_handler
+		.parse_incoming_pdu(raw_pdu, Some(room_version_rules))
+		.await
+		.map_err(|e| {
+			err!(Request(InvalidParam(debug_warn!(
+				"Invalid PDU in partial membership state: {e}"
+			))))
+		})?;
+
+	if state_event_room_id != room_id {
+		return Err!(Request(InvalidParam(debug_warn!(
+			%state_event_room_id,
+			%room_id,
+			"PDU in partial membership state ({state_event_id}) belongs to the wrong room"
+		))));
+	}
+
+	services
+		.server_keys
+		.verify_event_json(&state_event_json, room_version_rules)
+		.await
+		.map_err(|e| {
+			err!(Request(InvalidParam(
+				"Signature verification failed on partial membership state event: {e}"
+			)))
+		})?;
+
+	let Some(state_key) = state_event_json.get("state_key").and_then(|k| k.as_str()) else {
+		return Err!(Request(InvalidParam(debug_info!(
+			"PDU in partial membership state ({state_event_id}) is not a state event"
+		))));
+	};
+	let Some(event_type) = state_event_json.get("type").and_then(|k| k.as_str()) else {
+		return Err!(Request(InvalidParam(debug_warn!(
+			"PDU in partial membership state ({state_event_id}) is not an event?"
+		))));
+	};
+
+	let key = StateEventType::from(event_type).with_state_key(state_key);
+	if key.0 == StateEventType::RoomCreate {
+		// Ensure this is a legal create event.
+		let pdu_event = PduEvent::from_id_val(&state_event_id, state_event_json.clone())
+			.expect("must be able to create pdu event from event json");
+		debug!("Validating discovered create event in partial membership room state");
+		validate_invite_create_event(&pdu_event, room_version_rules).await?;
+	}
+
+	Ok((state_event_id, key, state_event_json))
+}
+
+/// Validates the *invite state* of an invite request, per the steps listed
+/// under the endpoint's [spec].
 ///
 /// Returns the create event's event ID, and the partial state map.
 ///
@@ -317,68 +386,25 @@ pub(crate) async fn validate_partial_membership_state(
 		HashMap::with_capacity(invite_state.len());
 	let mut create_event_id: Option<OwnedEventId> = None;
 
-	for (idx, invite_state_event) in invite_state.iter().cloned().enumerate() {
+	for (idx, invite_state_event) in invite_state.iter().enumerate() {
 		trace!(%idx, ?invite_state_event, "Partial membership state event");
-		// Stripped state hasn't been sent over federation since v1.16.
-		let RawStrippedState::Pdu(raw_pdu) = invite_state_event else {
-			debug!(%idx, "Partial membership state event is not a PDU");
-			return Err!(Request(InvalidParam(
-				"PDU in partial membership state (index {idx}) violates the room event format"
-			)));
-		};
-		let (state_event_room_id, state_event_id, state_event_json) = services
-			.rooms
-			.event_handler
-			.parse_incoming_pdu(&raw_pdu, Some(room_version_rules))
-			.await
-			.map_err(|e| {
-				err!(Request(InvalidParam(debug_warn!(
-					"Invalid PDU in partial membership state: {e}"
-				))))
-			})?;
+		let (state_event_id, key, state_event_json) = validate_partial_membership_event(
+			services,
+			invite_state_event,
+			room_version_rules,
+			&room_id,
+			idx,
+		)
+		.await?;
 
-		if state_event_room_id != room_id {
-			return Err!(Request(InvalidParam(debug_warn!(
-				%state_event_room_id,
-				%room_id,
-				"PDU in partial membership state ({state_event_id}) belongs to the wrong room"
-			))));
-		}
-
-		services
-			.server_keys
-			.verify_event_json(&state_event_json, room_version_rules)
-			.await
-			.map_err(|e| {
-				err!(Request(InvalidParam("Signature verification failed on invite event: {e}")))
-			})?;
-
-		let Some(state_key) = state_event_json.get("state_key").and_then(|k| k.as_str()) else {
-			return Err!(Request(InvalidParam(debug_info!(
-				"PDU in partial membership state ({state_event_id}) is not a state event"
-			))));
-		};
-		let Some(event_type) = state_event_json.get("type").and_then(|k| k.as_str()) else {
-			return Err!(Request(InvalidParam(debug_warn!(
-				"PDU in partial membership state ({state_event_id}) is not an event?"
-			))));
-		};
-
-		let key = StateEventType::from(event_type).with_state_key(state_key);
 		match invite_state_map.entry(key) {
 			| Entry::Occupied(entry) =>
 				return Err!(Request(InvalidParam(
-					"Duplicate state events in invite state for state key: {:?}",
+					"Duplicate state events in partial membership state for state key: {:?}",
 					entry.key(),
 				))),
 			| Entry::Vacant(entry) => {
 				if entry.key().0 == StateEventType::RoomCreate {
-					// Ensure this is a legal create event.
-					let pdu_event =
-						PduEvent::from_id_val(&state_event_id, state_event_json.clone())
-							.expect("must be able to create pdu event from event json");
-					debug!("Validating discovered create event in partial membership room state");
-					validate_invite_create_event(&pdu_event, room_version_rules).await?;
 					create_event_id = Some(state_event_id);
 				}
 				entry.insert(state_event_json);
@@ -399,8 +425,7 @@ pub(crate) async fn validate_partial_membership_state(
 		)
 		.map_err(|e| {
 			err!(Request(InvalidParam(
-				"PDU in partial membership state state for {key:?} violates the room event \
-				 format: {e}"
+				"PDU in partial membership state for {key:?} violates the room event format: {e}"
 			)))
 		})
 	})?;
