@@ -32,6 +32,11 @@ pub fn run() -> Result<()> {
 pub fn run_with_args(args: &Args) -> Result<()> {
 	// Spawn deadlock detection thread
 	deadlock::spawn();
+	#[cfg(not(any(feature = "jemalloc", feature = "mimalloc")))]
+	conduwuit_core::warn!(
+		"Your build configuration does not have a non-system allocator enabled. This may result \
+		 in decreased performance."
+	);
 
 	// Because we're not using rustls default-tls, we have to initialise a TLS
 	// provider
