@@ -2,7 +2,8 @@ use conduwuit::{
 	Err, Result, matrix::event::gen_event_id_canonical_json, trace, utils::to_canonical_object,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, ServerName, SigningKeyAlgorithm,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, ServerName, ServerSigningKeyId,
+	SigningKeyAlgorithm,
 	api::federation::discovery::ServerSigningKeys,
 	room_version_rules::RoomVersionRules,
 	serde::{Base64, Raw, base64::Standard},
@@ -32,6 +33,17 @@ impl TryFrom<&Raw<ServerSigningKeys>> for IncomingServerKeys {
 		value
 			.deserialize()
 			.map(|parsed| Self { raw: value.to_owned(), parsed })
+	}
+}
+
+impl IncomingServerKeys {
+	/// Returns an iterator of every key ID in this key response.
+	pub fn all_key_ids(&self) -> impl Iterator<Item = &ServerSigningKeyId> {
+		self.parsed
+			.verify_keys
+			.keys()
+			.chain(self.parsed.old_verify_keys.keys())
+			.map(|key| &**key)
 	}
 }
 

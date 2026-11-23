@@ -1,6 +1,5 @@
 use std::{
-	collections::{BTreeMap, HashMap, HashSet},
-	ops::Index,
+	collections::{BTreeMap, HashSet},
 	sync::Arc,
 	time::Instant,
 };
@@ -9,10 +8,9 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Result,
 	config::experiments::ToggledExperiment,
-	debug, debug_info, error,
+	debug_info,
 	utils::{ReadyExt, stream::automatic_width},
 };
-use futures::StreamExt;
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId,
 	api::federation::discovery::{
@@ -21,7 +19,7 @@ use ruma::{
 	},
 	serde::Raw,
 };
-use service::{server_keys, server_keys::in_one_week};
+use service::server_keys::{self, in_one_week};
 
 use crate::router::Ruma;
 
@@ -156,11 +154,30 @@ async fn query_inner(
 	Ok(response)
 }
 
+/// `GET /_matrix/key/v2/query/{serverName}`
+///
+/// Fetches the latest keys for a specific server name.
+pub(crate) async fn get_remote_server_keys_route(
+	State(services): State<crate::State>,
+	body: Ruma<get_remote_server_keys::v2::Request>,
+) -> Result<get_remote_server_keys::v2::Response> {
+	let server_keys = acquire_keys_as_notary(
+		services.server_keys.clone(),
+		body.server_name.clone(),
+		BTreeMap::new(),
+		body.minimum_valid_until_ts,
+		None,
+	)
+	.await;
+
+	Ok(get_remote_server_keys::v2::Response::new(server_keys))
+}
+
 #[tracing::instrument(skip(server_keys, queries, start, semaphore))]
 async fn acquire_keys_as_notary(
 	server_keys: Arc<server_keys::Service>,
 	remote: OwnedServerName,
-	mut queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
+	queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
 	start: MilliSecondsSinceUnixEpoch,
 	semaphore: Option<Arc<tokio::sync::Semaphore>>,
 ) -> Vec<Raw<ServerSigningKeys>> {
@@ -175,183 +192,116 @@ async fn acquire_keys_as_notary(
 	} else {
 		None
 	};
-	let fetch_all = queries.is_empty();
-	let mut results = Vec::with_capacity(queries.len().max(1));
-	let mut keymap = HashMap::with_capacity(queries.len().max(1));
 
-	// First contact the origin (if we're allowed to)
-	if server_keys.notary_may_contact_origin(&remote) {
-		debug_info!("Asking remote directly for verify keys");
+	let mut candidate_remote_keys = Vec::with_capacity(queries.len().max(1));
 
-		if let Ok(remote_keys) = server_keys.origin_request(remote.clone(), start).await
-			&& let Ok(signed_remote_keys) =
-				server_keys.self_sign_signing_keys(&remote, &remote_keys.raw)
+	// If we haven't contacted the origin recently, we need to do that now
+	// to update our caches, and we might as well use its response as a
+	// candidate.
+	if server_keys.origin_not_contacted_recently(&remote) {
+		if let Ok(remote_keys) = server_keys.origin_request(remote.clone(), start).await {
+			debug_info!("Considering keys from origin response");
+			candidate_remote_keys.push(remote_keys);
+		}
+	}
+
+	if queries.is_empty() {
+		// The querying server wants all of the origin's keys. If we decided to
+		// contact it earlier, we can safely assume its response already
+		// includes all of its keys. Otherwise, we'll add all of our cached
+		// responses as candidates.
+
+		if candidate_remote_keys.is_empty() {
+			debug_info!("Querying server wants all keys, considering all cached key responses");
+			server_keys
+				.signing_keys_for(&remote)
+				.ready_for_each(|remote_keys| candidate_remote_keys.push(remote_keys))
+				.await;
+		}
+	} else {
+		// The querying server is asking for specific key IDs.
+
+		for key_id in queries.keys() {
+			if let Some(remote_keys) = server_keys.get_signing_key(&remote, key_id).await {
+				debug_info!(?key_id, "Considering cached response containing key");
+
+				candidate_remote_keys.push(remote_keys);
+			} else {
+				debug_info!(?key_id, "No cached response contains key");
+			}
+		}
+	}
+
+	// Now we need to filter and sign the remote key responses.
+
+	// The signing key responses containing the keys the querying server wants.
+	let mut signed_remote_key_responses = Vec::with_capacity(queries.len().max(1));
+
+	// The key IDs we've already included in a response.
+	let mut signed_remote_key_ids = HashSet::with_capacity(queries.len().max(1));
+
+	for remote_keys in candidate_remote_keys {
+		// Skip this key response if all of its keys were already included
+		// in other key responses.
+		if remote_keys
+			.all_key_ids()
+			.all(|key_id| signed_remote_key_ids.contains(key_id))
 		{
-			let index = results.len();
-			results.push(signed_remote_keys);
-			for key_id in remote_keys
+			continue;
+		}
+
+		// Skip this key response if it expires too far in the future.
+		if remote_keys.parsed.valid_until_ts > in_one_week() {
+			continue;
+		}
+
+		// Check query criteria (currently just the minimum expiry time) for
+		// each key included in this key response. We skip this response if
+		// _all_ of the keys in the response fail their criteria.
+
+		let all_verify_keys_expired = remote_keys.parsed.verify_keys.keys().all(|key_id| {
+			let minimum_valid_until_ts = queries
+				.get(key_id)
+				.and_then(|criterion| criterion.minimum_valid_until_ts)
+				.unwrap_or(start);
+
+			remote_keys.parsed.valid_until_ts < minimum_valid_until_ts
+		});
+
+		let all_old_verify_keys_expired =
+			remote_keys
 				.parsed
-				.verify_keys
-				.keys()
-				.chain(remote_keys.parsed.old_verify_keys.keys())
-			{
-				if fetch_all
-					|| queries.get(key_id).is_some_and(|c| {
-						c.minimum_valid_until_ts
-							.is_none_or(|m| remote_keys.parsed.valid_until_ts >= m)
-					}) {
-					queries.remove(key_id);
-					keymap.insert(key_id.to_owned(), index);
-				}
-			}
-		}
-	} else {
-		debug!("Not asking remote for keys (already asked recently)");
-	}
-	debug!(keys=?keymap.keys(), "Live verify keys");
-	if fetch_all && keymap.is_empty() {
-		// If the server asked for all keys, AND we didn't get anything from the
-		// origin, just fetch any fresh responses we have.
-		server_keys
-			.signing_keys_for(&remote)
-			.ready_filter_map(|remote_keys| {
-				if remote_keys.parsed.valid_until_ts > in_one_week()
-					|| remote_keys.parsed.valid_until_ts < start
-				{
-					return None;
-				}
+				.old_verify_keys
+				.iter()
+				.all(|(key_id, key)| {
+					if let Some(criterion) = queries.get(key_id)
+						&& let Some(minimum_valid_until_ts) = criterion.minimum_valid_until_ts
+					{
+						key.expired_ts < minimum_valid_until_ts
+					} else {
+						// If the querying server didn't explicitly set a
+						// minimum timestamp for an old verify key,
+						// we should treat it as valid.
+						false
+					}
+				});
 
-				server_keys
-					.self_sign_signing_keys(&remote, &remote_keys.raw)
-					.map(|signed_remote_keys| (remote_keys, signed_remote_keys))
-					.ok()
-			})
-			.ready_for_each(|(ssk, signed_ssk)| {
-				let idx = results.len();
-				results.push(signed_ssk);
-				for key_id in ssk
-					.parsed
-					.verify_keys
-					.keys()
-					.chain(ssk.parsed.old_verify_keys.keys())
-				{
-					keymap.insert(key_id.to_owned(), idx);
-				}
-			})
-			.await;
-	}
-
-	// If we're still missing some keys, fetch them from the local cache
-	for (key_id, criteria) in queries {
-		debug!(%key_id, "Fetching verify key from local repository");
-
-		if keymap.contains_key(&key_id) {
-			debug!(%key_id, "Already found key");
+		if all_verify_keys_expired && all_old_verify_keys_expired {
 			continue;
 		}
 
-		let minimum_valid_until_ts = criteria.clone().minimum_valid_until_ts.unwrap_or(start);
+		// This response is acceptable, let's sign and send it.
 
-		let Some(remote_keys) = server_keys.get_signing_key(&remote, &key_id).await else {
-			debug!(%remote, %key_id, "Could not find a matching signing key locally.");
-			continue;
-		};
-
-		if remote_keys.parsed.valid_until_ts < minimum_valid_until_ts
-			|| remote_keys.parsed.valid_until_ts > in_one_week()
-		{
-			debug!(
-				%key_id,
-				valid_until_ts=?remote_keys.parsed.valid_until_ts,
-				?minimum_valid_until_ts,
-				"Stored verify key does not satisfy query criteria"
-			);
-			continue;
-		}
-		if let Some(old_verify_key) = remote_keys.parsed.old_verify_keys.get(&key_id) {
-			if old_verify_key.expired_ts < minimum_valid_until_ts {
-				debug!(
-					%key_id,
-					expired_ts=?old_verify_key.expired_ts,
-					?minimum_valid_until_ts,
-					"Stored old verify key does not satisfy query criteria"
-				);
-				continue;
-			}
-		}
-
-		debug!(%key_id, ?remote_keys.parsed, "Found key locally");
-		let rep_key_ids = remote_keys
-			.parsed
-			.verify_keys
-			.keys()
-			.cloned()
-			.collect::<Vec<_>>();
-		let Ok(signed_remote_keys) = server_keys
+		let signed_remote_keys = server_keys
 			.self_sign_signing_keys(&remote, &remote_keys.raw)
-			.inspect_err(
-				|e| error!(%key_id, %remote, "Failed to sign signing keys chunk: {e:?}"),
-			)
-		else {
-			continue;
-		};
+			.expect("should be able to sign remote keys");
 
-		let idx = results.len();
-		results.push(signed_remote_keys);
-		keymap.insert(key_id, idx);
-		for key_id in rep_key_ids {
-			keymap.insert(key_id, idx);
+		signed_remote_key_responses.push(signed_remote_keys);
+
+		for key_id in remote_keys.all_key_ids() {
+			signed_remote_key_ids.insert(key_id.to_owned());
 		}
 	}
 
-	keymap
-		.into_values()
-		.collect::<HashSet<_>>()
-		.into_iter()
-		.map(|idx| results.index(idx).to_owned())
-		.collect()
-}
-
-/// `GET /_matrix/key/v2/query/{serverName}`
-///
-/// Fetches the latest keys for a specific server name.
-pub(crate) async fn get_remote_server_keys_route(
-	State(services): State<crate::State>,
-	body: Ruma<get_remote_server_keys::v2::Request>,
-) -> Result<get_remote_server_keys::v2::Response> {
-	let min_valid_ts = body.minimum_valid_until_ts;
-	if services
-		.server_keys
-		.notary_may_contact_origin(&body.server_name)
-		&& let Ok(remote_keys) = services
-			.server_keys
-			.origin_request(body.server_name.clone(), min_valid_ts)
-			.await
-	{
-		let signed_remote_keys = services
-			.server_keys
-			.self_sign_signing_keys(&body.server_name, &remote_keys.raw)?;
-
-		Ok(get_remote_server_keys::v2::Response::new(vec![signed_remote_keys]))
-	} else {
-		let signed_remote_keys = services
-			.server_keys
-			.signing_keys_for(&body.server_name)
-			.ready_filter_map(|remote_keys| {
-				if remote_keys.parsed.valid_until_ts > in_one_week()
-					|| remote_keys.parsed.valid_until_ts < min_valid_ts
-				{
-					return None;
-				}
-
-				services
-					.server_keys
-					.self_sign_signing_keys(&body.server_name, &remote_keys.raw)
-					.ok()
-			})
-			.collect::<Vec<_>>()
-			.await;
-
-		Ok(get_remote_server_keys::v2::Response::new(signed_remote_keys))
-	}
+	signed_remote_key_responses
 }

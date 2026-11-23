@@ -224,7 +224,7 @@ impl Service {
 	/// when acting as a notary server. This limits origin lookups to once per
 	/// minute, which prevents amplification attacks.
 	#[must_use]
-	pub fn notary_may_contact_origin(&self, server_name: &ServerName) -> bool {
+	pub fn origin_not_contacted_recently(&self, server_name: &ServerName) -> bool {
 		if server_name == self.services.server.name {
 			// We always intercept origin requests to us with
 			// build_server_keys_response, so this is equivalent to
