@@ -11,7 +11,11 @@ use axum::{
 use conduwuit::{Error, Result, err, error};
 use ruma::{
 	CanonicalJsonObject,
-	api::{IncomingRequest, IncomingRequestExt, auth_scheme::AuthScheme},
+	api::{
+		IncomingRequest, IncomingRequestExt,
+		auth_scheme::AuthScheme,
+		error::{DeserializationError, FromHttpRequestError},
+	},
 };
 use serde::Deserialize;
 
@@ -114,8 +118,18 @@ where
 				.await?;
 
 		// Deserialize the body
-		let body = R::try_from_http_request(request, &borrowed_path)
-			.map_err(|e| err!(Request(BadJson(debug_warn!("{e}")))))?;
+		let body_is_empty = body.is_empty();
+		let body = R::try_from_http_request(request, &borrowed_path).map_err(|e| match e {
+			| FromHttpRequestError::Deserialization(DeserializationError::Json(ref json_err))
+				if body_is_empty || json_err.is_syntax() || json_err.is_eof() =>
+				err!(Request(NotJson(debug_warn!("{e}")))),
+			| FromHttpRequestError::Deserialization(DeserializationError::Utf8(_)) =>
+				err!(Request(NotJson(debug_warn!("{e}")))),
+			| FromHttpRequestError::Deserialization(
+				DeserializationError::Ident(_) | DeserializationError::Query(_),
+			) => err!(Request(InvalidParam(debug_warn!("{e}")))),
+			| _ => err!(Request(BadJson(debug_warn!("{e}")))),
+		})?;
 
 		Ok(Self { body, json_body, identity })
 	}

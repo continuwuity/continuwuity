@@ -171,13 +171,14 @@ impl Error {
 	/// Returns the Matrix error code / error kind
 	#[inline]
 	pub fn kind(&self) -> ErrorKind {
-		use ruma::api::error::ErrorKind::{Unknown, Unrecognized};
+		use ruma::api::error::ErrorKind::{InvalidParam, Unknown, Unrecognized};
 
 		match self {
 			| Self::Federation(_, error) | Self::Ruma(error) =>
 				response::ruma_error_kind(error).clone(),
 			| BadRequest(kind, ..) | Self::Request(kind, ..) => kind.clone(),
 			| Self::FeatureDisabled(..) => Unrecognized,
+			| Self::Path(_) | Self::Query(_) => InvalidParam,
 			| _ => Unknown,
 		}
 	}
@@ -194,6 +195,7 @@ impl Error {
 			| Self::FeatureDisabled(..) => response::bad_request_code(&self.kind()),
 			| Self::Reqwest(error) => error.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
 			| Self::Conflict(_) => StatusCode::CONFLICT,
+			| Self::Path(_) | Self::Query(_) => StatusCode::BAD_REQUEST,
 			| Self::Io(error) => response::io_error_code(error.kind()),
 			| Self::Uiaa(_) => StatusCode::UNAUTHORIZED,
 			| _ => StatusCode::INTERNAL_SERVER_ERROR,
