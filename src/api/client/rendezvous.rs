@@ -9,7 +9,7 @@ use service::Services;
 
 use crate::{Ruma, router::ClientIdentity};
 
-/// `GET /_matrix/client/msc4388/io.element.msc4388/rendezvous`
+/// `GET /_matrix/client/unstable/io.element.msc4388/rendezvous`
 pub(crate) async fn discover_rendezvous_route(
 	State(services): State<crate::State>,
 	body: Ruma<discover_rendezvous::msc4388::Request>,
@@ -20,7 +20,7 @@ pub(crate) async fn discover_rendezvous_route(
 	)))
 }
 
-/// `POST /_matrix/client/msc4388/io.element.msc4388/rendezvous/`
+/// `POST /_matrix/client/unstable/io.element.msc4388/rendezvous`
 pub(crate) async fn create_rendezvous_session_route(
 	State(services): State<crate::State>,
 	body: Ruma<create_rendezvous_session::msc4388::Request>,
@@ -32,7 +32,7 @@ pub(crate) async fn create_rendezvous_session_route(
 	services.rendezvous.create_session(body.data.clone())
 }
 
-/// `PUT /_matrix/client/msc4388/io.element.msc4388/rendezvous/{id}/{txn_id}`
+/// `PUT /_matrix/client/unstable/io.element.msc4388/rendezvous/{id}/{txn_id}`
 pub(crate) async fn update_rendezvous_session_route(
 	State(services): State<crate::State>,
 	body: Ruma<update_rendezvous_session::msc4388::Request>,
@@ -45,7 +45,7 @@ pub(crate) async fn update_rendezvous_session_route(
 	)
 }
 
-/// `GET /_matrix/client/msc4388/io.element.msc4388/rendezvous/{id}`
+/// `GET /_matrix/client/unstable/io.element.msc4388/rendezvous/{id}`
 pub(crate) async fn get_rendezvous_session_route(
 	State(services): State<crate::State>,
 	headers: HeaderMap,
@@ -77,7 +77,7 @@ pub(crate) async fn get_rendezvous_session_route(
 	services.rendezvous.get_session(&body.id)
 }
 
-/// `DELETE /_matrix/client/msc4388/io.element.msc4388/rendezvous/{id}`
+/// `DELETE /_matrix/client/unstable/io.element.msc4388/rendezvous/{id}`
 pub(crate) async fn delete_rendezvous_session_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_rendezvous_session::msc4388::Request>,
