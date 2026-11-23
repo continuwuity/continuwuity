@@ -270,7 +270,7 @@ async fn acquire_keys_as_notary(
 			remote_keys.parsed.valid_until_ts < minimum_valid_until_ts
 		});
 
-		let all_old_verify_keys_expired =
+		let all_old_verify_keys_too_old =
 			remote_keys
 				.parsed
 				.old_verify_keys
@@ -288,7 +288,7 @@ async fn acquire_keys_as_notary(
 					}
 				});
 
-		if all_verify_keys_expired && all_old_verify_keys_expired {
+		if all_verify_keys_expired && all_old_verify_keys_too_old {
 			continue;
 		}
 
