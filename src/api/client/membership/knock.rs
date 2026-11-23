@@ -216,6 +216,7 @@ async fn knock_room_by_id_helper(
 	Ok(knock_room::v3::Response::new(room_id.to_owned()))
 }
 
+#[tracing::instrument(name = "local", skip(services, reason, state_lock))]
 async fn knock_room_helper_local(
 	services: &Services,
 	sender_user: &UserId,
@@ -250,6 +251,7 @@ async fn knock_room_helper_local(
 		.map(|_| ())
 }
 
+#[tracing::instrument(name = "remote", skip(services, reason, servers))]
 async fn knock_room_helper_remote(
 	services: &Services,
 	sender_user: &UserId,
@@ -262,7 +264,7 @@ async fn knock_room_helper_remote(
 	let (mut stub, room_version, remote_server) =
 		make_knock_request(services, sender_user, room_id, servers).await?;
 
-	info!("make_knock finished");
+	info!(%remote_server, "make_knock finished");
 
 	let room_version_rules = room_version
 		.rules()
@@ -301,7 +303,7 @@ async fn knock_room_helper_remote(
 
 	// Just verify that this event isn't hilariously malformed before we sent it
 	// off.
-	info!("Parsing knock event");
+	debug!(?stub, "Parsing knock event");
 	PduEvent::from_id_val(&event_id, stub.clone())
 		.map_err(|e| err!(BadServerResponse("Invalid knock event PDU: {e:?}")))?;
 
@@ -344,6 +346,7 @@ async fn knock_room_helper_remote(
 	// we'll receive the knock PDU over /send. Otherwise, we need to add it as
 	// an outlier. Since this function isn't a fallback when local knocks fail,
 	// we can do this unconditionally.
+	info!("Saving knock data");
 	services
 		.rooms
 		.outlier
