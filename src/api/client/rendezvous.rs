@@ -51,10 +51,24 @@ pub(crate) async fn get_rendezvous_session_route(
 	headers: HeaderMap,
 	body: Ruma<get_rendezvous_session::msc4388::Request>,
 ) -> Result<get_rendezvous_session::msc4388::Response> {
-	if let Some(mode) = headers.get("Sec-Fetch-Mode")
-		&& let Ok(mode) = mode.to_str()
-		&& mode == "navigate"
-	{
+	let is_navigation_mode = headers
+		.get_all("Sec-Fetch-Mode")
+		.iter()
+		.filter_map(|v| v.to_str().ok())
+		.any(|mode| {
+			mode.eq_ignore_ascii_case("navigate") || mode.eq_ignore_ascii_case("nested-navigate")
+		});
+	let is_navigation_dest = headers
+		.get_all("Sec-Fetch-Dest")
+		.iter()
+		.filter_map(|v| v.to_str().ok())
+		.any(|dest| {
+			matches!(
+				dest.to_ascii_lowercase().as_str(),
+				"document" | "iframe" | "frame" | "object" | "embed" | "fencedframe"
+			)
+		});
+	if is_navigation_mode || is_navigation_dest {
 		return Err!(Request(Forbidden(
 			"Rendezvous sessions do not accept browser navigation requests."
 		)));
