@@ -35,7 +35,7 @@ impl super::Service {
 			return self
 				.build_server_keys_response()
 				.await
-				.and_then(|r| r.deserialize().map_err(Into::into));
+				.and_then(|r| r.try_into().map_err(Into::into));
 		}
 
 		// N.B. The "last lookup" is written before the request is actually made

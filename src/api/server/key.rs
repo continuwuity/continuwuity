@@ -160,7 +160,7 @@ async fn query_inner(
 
 async fn sign_ssk(
 	server_keys: &server_keys::Service,
-	ssk: ServerSigningKeys,
+	ssk: &Raw<ServerSigningKeys>,
 	server_name: &ServerName,
 	our_name: &ServerName,
 ) -> Result<Raw<ServerSigningKeys>> {
@@ -172,11 +172,11 @@ async fn sign_ssk(
 			%our_name,
 			"Refusing to sign our own signing keys response (should already be signed)"
 		);
-		return to_raw_value(&ssk)
+		return to_raw_value(ssk)
 			.map(Raw::<ServerSigningKeys>::from_json)
 			.map_err(Into::into);
 	}
-	let mut canonical = to_canonical_object(&ssk)?;
+	let mut canonical = to_canonical_object(ssk)?;
 	server_keys.sign_json(&mut canonical)?;
 	server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[our_name]);
 	to_raw_value(&canonical)
@@ -212,15 +212,20 @@ async fn acquire_keys_as_notary(
 	if server_keys.notary_may_contact_origin(&remote) {
 		debug_info!("Asking remote directly for verify keys");
 		if let Ok(res) = server_keys.origin_request(remote.clone(), start).await
-			&& let Ok(ssk) = sign_ssk(&server_keys, res.clone(), &remote, &my_name).await
+			&& let Ok(ssk) = sign_ssk(&server_keys, &res.raw, &remote, &my_name).await
 		{
 			let index = results.len();
 			results.push(ssk);
-			for key_id in res.verify_keys.keys().chain(res.old_verify_keys.keys()) {
+			for key_id in res
+				.parsed
+				.verify_keys
+				.keys()
+				.chain(res.parsed.old_verify_keys.keys())
+			{
 				if fetch_all
 					|| queries.get(key_id).is_some_and(|c| {
 						c.minimum_valid_until_ts
-							.is_none_or(|m| res.valid_until_ts >= m)
+							.is_none_or(|m| res.parsed.valid_until_ts >= m)
 					}) {
 					queries.remove(key_id);
 					keymap.insert(key_id.to_owned(), index);
@@ -241,11 +246,13 @@ async fn acquire_keys_as_notary(
 				let my_name = &my_name;
 				let server_keys = &server_keys;
 				async move {
-					if ssk.valid_until_ts > in_one_week() || ssk.valid_until_ts < start {
+					if ssk.parsed.valid_until_ts > in_one_week()
+						|| ssk.parsed.valid_until_ts < start
+					{
 						return None;
 					}
 
-					sign_ssk(server_keys, ssk.clone(), server_name, my_name)
+					sign_ssk(server_keys, &ssk.raw, server_name, my_name)
 						.await
 						.map(|signed_ssk| (ssk, signed_ssk))
 						.ok()
@@ -254,7 +261,12 @@ async fn acquire_keys_as_notary(
 			.ready_for_each(|(ssk, signed_ssk)| {
 				let idx = results.len();
 				results.push(signed_ssk);
-				for key_id in ssk.verify_keys.keys().chain(ssk.old_verify_keys.keys()) {
+				for key_id in ssk
+					.parsed
+					.verify_keys
+					.keys()
+					.chain(ssk.parsed.old_verify_keys.keys())
+				{
 					keymap.insert(key_id.to_owned(), idx);
 				}
 			})
@@ -280,16 +292,18 @@ async fn acquire_keys_as_notary(
 			continue;
 		};
 
-		if ssk.valid_until_ts < minimum_valid_until_ts || ssk.valid_until_ts > in_one_week() {
+		if ssk.parsed.valid_until_ts < minimum_valid_until_ts
+			|| ssk.parsed.valid_until_ts > in_one_week()
+		{
 			debug!(
 				%key_id,
-				valid_until_ts=?ssk.valid_until_ts,
+				valid_until_ts=?ssk.parsed.valid_until_ts,
 				?minimum_valid_until_ts,
 				"Stored verify key does not satisfy query criteria"
 			);
 			continue;
 		}
-		if let Some(old_verify_key) = ssk.old_verify_keys.get(&key_id) {
+		if let Some(old_verify_key) = ssk.parsed.old_verify_keys.get(&key_id) {
 			if old_verify_key.expired_ts < minimum_valid_until_ts {
 				debug!(
 					%key_id,
@@ -301,9 +315,9 @@ async fn acquire_keys_as_notary(
 			}
 		}
 
-		debug!(%key_id, ?ssk, "Found key locally");
-		let rep_key_ids = ssk.verify_keys.keys().cloned().collect::<Vec<_>>();
-		let Ok(signed_ssk) = sign_ssk(&server_keys, ssk.clone(), &remote, &my_name)
+		debug!(%key_id, ?ssk.parsed, "Found key locally");
+		let rep_key_ids = ssk.parsed.verify_keys.keys().cloned().collect::<Vec<_>>();
+		let Ok(signed_ssk) = sign_ssk(&server_keys, &ssk.raw, &remote, &my_name)
 			.await
 			.inspect_err(
 				|e| error!(%key_id, %remote, "Failed to sign signing keys chunk: {e:?}"),
@@ -346,7 +360,7 @@ pub(crate) async fn get_remote_server_keys_route(
 	{
 		return sign_ssk(
 			&services.server_keys,
-			response,
+			&response.raw,
 			&body.server_name,
 			services.globals.server_name(),
 		)
@@ -360,13 +374,15 @@ pub(crate) async fn get_remote_server_keys_route(
 		.broad_filter_map(|ssk| {
 			let server_name = body.server_name.clone();
 			async move {
-				if ssk.valid_until_ts > in_one_week() || ssk.valid_until_ts < min_valid_ts {
+				if ssk.parsed.valid_until_ts > in_one_week()
+					|| ssk.parsed.valid_until_ts < min_valid_ts
+				{
 					return None;
 				}
 
 				sign_ssk(
 					&services.server_keys,
-					ssk,
+					&ssk.raw,
 					server_name.as_ref(),
 					services.globals.server_name(),
 				)

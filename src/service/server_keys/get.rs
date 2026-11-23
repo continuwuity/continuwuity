@@ -158,7 +158,7 @@ impl super::Service {
 
 				if let Some(server_keys) = self.get_signing_key(origin, key_id).await
 					&& let Some(key) =
-						verify_key_from_response(key_id, &server_keys, min_valid_ts)
+						verify_key_from_response(key_id, &server_keys.parsed, min_valid_ts)
 				{
 					trace!(%origin, %key_id, ?min_valid_ts, "Verify key exists locally");
 					Self::track_one_result(
@@ -387,7 +387,7 @@ impl super::Service {
 		if let Some(vk) = self
 			.get_signing_key(origin, key_id)
 			.await
-			.and_then(|ssk| verify_key_from_response(key_id, &ssk, min_valid_ts))
+			.and_then(|ssk| verify_key_from_response(key_id, &ssk.parsed, min_valid_ts))
 		{
 			trace!("Found verify key locally");
 			return Some(vk);

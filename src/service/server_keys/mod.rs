@@ -148,7 +148,9 @@ impl Service {
 		key_id: &ServerSigningKeyId,
 		minimum_valid_ts: MilliSecondsSinceUnixEpoch,
 	) -> bool {
-		let Some(keys) = self.get_signing_key(origin, key_id).await else {
+		let Some(IncomingServerKeys { parsed: keys, .. }) =
+			self.get_signing_key(origin, key_id).await
+		else {
 			// We have no keys for this server
 			return false;
 		};
@@ -176,12 +178,13 @@ impl Service {
 		&self,
 		origin: &ServerName,
 		key_id: &ServerSigningKeyId,
-	) -> Option<ServerSigningKeys> {
+	) -> Option<IncomingServerKeys> {
 		self.db
 			.servernamekeyid_response
 			.qry(&(origin.as_str(), key_id.as_str()))
 			.await
-			.deserialized::<ServerSigningKeys>()
+			.deserialized::<Raw<ServerSigningKeys>>()
+			.and_then(|r| r.try_into().map_err(Into::into))
 			.ok()
 	}
 
