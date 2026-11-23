@@ -201,7 +201,16 @@ async fn acquire_keys_as_notary(
 	// to update our caches, and we might as well use its response as a
 	// candidate.
 	if server_keys.origin_not_contacted_recently(&remote) {
-		if let Ok(remote_keys) = server_keys.origin_request(remote.clone(), start).await {
+		let min_valid_ts = queries
+			.values()
+			.map(|criterion| criterion.minimum_valid_until_ts.unwrap_or(start))
+			.min()
+			.unwrap_or(start);
+
+		if let Ok(remote_keys) = server_keys
+			.origin_request(remote.clone(), min_valid_ts)
+			.await
+		{
 			debug_info!("Considering keys from origin response");
 			candidate_remote_keys.push(remote_keys);
 		}
@@ -243,52 +252,53 @@ async fn acquire_keys_as_notary(
 	let mut signed_remote_key_ids = HashSet::with_capacity(queries.len().max(1));
 
 	for remote_keys in candidate_remote_keys {
-		// Skip this key response if all of its keys were already included
-		// in other key responses.
-		if remote_keys
-			.all_key_ids()
-			.all(|key_id| signed_remote_key_ids.contains(key_id))
-		{
-			continue;
-		}
-
 		// Skip this key response if it expires too far in the future.
 		if remote_keys.parsed.valid_until_ts > in_one_week() {
 			continue;
 		}
 
-		// Check query criteria (currently just the minimum expiry time) for
-		// each key included in this key response. We skip this response if
-		// _all_ of the keys in the response fail their criteria.
+		// Determine which requested keys (or all keys when no specific keys
+		// were requested) are newly satisfied by this response.
+		let newly_satisfied: Vec<OwnedServerSigningKeyId> = if queries.is_empty() {
+			if remote_keys.parsed.valid_until_ts < start {
+				continue;
+			}
 
-		let all_verify_keys_expired = remote_keys.parsed.verify_keys.keys().all(|key_id| {
-			let minimum_valid_until_ts = queries
-				.get(key_id)
-				.and_then(|criterion| criterion.minimum_valid_until_ts)
-				.unwrap_or(start);
-
-			remote_keys.parsed.valid_until_ts < minimum_valid_until_ts
-		});
-
-		let all_old_verify_keys_too_old =
 			remote_keys
-				.parsed
-				.old_verify_keys
+				.all_key_ids()
+				.filter(|key_id| !signed_remote_key_ids.contains(*key_id))
+				.map(ToOwned::to_owned)
+				.collect()
+		} else {
+			queries
 				.iter()
-				.all(|(key_id, key)| {
-					if let Some(criterion) = queries.get(key_id)
-						&& let Some(minimum_valid_until_ts) = criterion.minimum_valid_until_ts
-					{
-						key.expired_ts < minimum_valid_until_ts
-					} else {
-						// If the querying server didn't explicitly set a
-						// minimum timestamp for an old verify key,
-						// we should treat it as valid.
-						false
+				.filter_map(|(key_id, criterion)| {
+					if signed_remote_key_ids.contains(key_id) {
+						return None;
 					}
-				});
 
-		if all_verify_keys_expired && all_old_verify_keys_too_old {
+					let minimum_valid_until_ts =
+						criterion.minimum_valid_until_ts.unwrap_or(start);
+
+					if remote_keys.parsed.valid_until_ts < minimum_valid_until_ts {
+						return None;
+					}
+
+					let satisfied = remote_keys.parsed.verify_keys.contains_key(key_id)
+						|| remote_keys.parsed.old_verify_keys.get(key_id).is_some_and(
+							|old_key| {
+								criterion
+									.minimum_valid_until_ts
+									.is_none_or(|min_ts| old_key.expired_ts >= min_ts)
+							},
+						);
+
+					satisfied.then(|| key_id.to_owned())
+				})
+				.collect()
+		};
+
+		if newly_satisfied.is_empty() {
 			continue;
 		}
 
@@ -299,10 +309,7 @@ async fn acquire_keys_as_notary(
 			.expect("should be able to sign remote keys");
 
 		signed_remote_key_responses.push(signed_remote_keys);
-
-		for key_id in remote_keys.all_key_ids() {
-			signed_remote_key_ids.insert(key_id.to_owned());
-		}
+		signed_remote_key_ids.extend(newly_satisfied);
 	}
 
 	signed_remote_key_responses
