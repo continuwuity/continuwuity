@@ -1,5 +1,6 @@
 use std::{
 	collections::{BTreeSet, HashMap},
+	fmt::Write,
 	sync::Arc,
 	time::{Duration, SystemTime},
 };
@@ -72,6 +73,15 @@ impl SessionInfo {
 	#[must_use]
 	pub fn scopes(&self) -> BTreeSet<OAuthClientScope> {
 		self.scopes.union(&self.temporary_scopes).cloned().collect()
+	}
+
+	#[must_use]
+	pub fn scope_string(&self, device_id: &DeviceId) -> String {
+		let mut scopes = self.scopes().iter().join(" ");
+
+		let _ = write!(scopes, " urn:matrix:client:device:{device_id}");
+
+		scopes
 	}
 }
 
@@ -767,9 +777,7 @@ impl Service {
 			panic!("refresh token is not current or previous for its session");
 		}
 
-		// TODO: this doesn't include the device ID "scope", do any clients rely
-		// on that?
-		let scope = session_info.scopes.iter().join(" ");
+		let scope = session_info.scope_string(&refresh_token_info.device_id);
 
 		let new_access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
 
