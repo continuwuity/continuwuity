@@ -190,11 +190,23 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::well_known_policy_server)
 		.ruma_route(&client::get_rtc_transports)
 		.ruma_route(&client::room_initial_sync_route)
-		.ruma_route(&client::discover_rendezvous_route)
-		.ruma_route(&client::create_rendezvous_session_route)
-		.ruma_route(&client::update_rendezvous_session_route)
-		.ruma_route(&client::get_rendezvous_session_route)
-		.ruma_route(&client::delete_rendezvous_session_route)
+		.merge(
+			Router::new()
+				.ruma_route(&client::discover_rendezvous_route)
+				.ruma_route(&client::create_rendezvous_session_route)
+				.ruma_route(&client::update_rendezvous_session_route)
+				.ruma_route(&client::get_rendezvous_session_route)
+				.ruma_route(&client::delete_rendezvous_session_route)
+				.layer(axum::middleware::map_response(
+					async |mut response: axum::response::Response| {
+						response.headers_mut().insert(
+							http::header::CACHE_CONTROL,
+							http::HeaderValue::from_static("no-store"),
+						);
+						response
+					},
+				)),
+		)
 		.ruma_route(&client::get_authorization_server_metadata_route)
 		.merge(client::oauth::router(state))
 		.route("/_continuwuity/server_version", get(client::continuwuity_server_version))
