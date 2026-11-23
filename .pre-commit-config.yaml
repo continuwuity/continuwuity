@@ -36,6 +36,11 @@ repos:
     hooks:
       - id: committed
 
+  - repo: https://github.com/twisted/towncrier
+    rev: 26.9.0
+    hooks:
+      - id: towncrier-check
+
   - repo: local
     hooks:
       - id: cargo-fmt
