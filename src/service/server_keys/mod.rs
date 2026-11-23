@@ -294,7 +294,7 @@ impl Service {
 					.entry(old_key_id)
 					.and_modify(|current_old_key: &mut OldVerifyKey| {
 						// Use the lowest expiry timestamp
-						if current_old_key.expired_ts < old_key.expired_ts {
+						if current_old_key.expired_ts > old_key.expired_ts {
 							*current_old_key = old_key.clone();
 						}
 					})
