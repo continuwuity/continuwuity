@@ -22,7 +22,6 @@ use ruma::{
 		get_remote_server_keys_batch::v2::QueryCriteria, get_server_keys,
 	},
 	serde::Raw,
-	uint,
 };
 use serde_json::value::to_raw_value;
 use service::{server_keys, server_keys::in_one_week};
@@ -59,7 +58,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_remote_server_keys_batch::v2::Request>,
 ) -> Result<get_remote_server_keys_batch::v2::Response> {
-	query_inner(&services, &body.server_keys, false)
+	query_inner(&services, &body.server_keys, true)
 		.await
 		.map(get_remote_server_keys_batch::v2::Response::new)
 }
@@ -102,7 +101,7 @@ async fn query_inner(
 	let total_queried_servers = body.len();
 	let total_queried_keys = body
 		.values()
-		.fold(body.len(), |acc, q| acc.saturating_add(q.len()));
+		.fold(0_usize, |acc, q| acc.saturating_add(q.len().max(1)));
 
 	if !v2 {
 		// If we're on the v3 endpoint, we can apply these limits explicitly.
@@ -282,10 +281,7 @@ async fn acquire_keys_as_notary(
 			continue;
 		}
 
-		let minimum_valid_until_ts = criteria
-			.clone()
-			.minimum_valid_until_ts
-			.unwrap_or_else(|| MilliSecondsSinceUnixEpoch(uint!(0)));
+		let minimum_valid_until_ts = criteria.clone().minimum_valid_until_ts.unwrap_or(start);
 
 		let Some(ssk) = server_keys.get_signing_key(&remote, &key_id).await else {
 			debug!(%remote, %key_id, "Could not find a matching signing key locally.");

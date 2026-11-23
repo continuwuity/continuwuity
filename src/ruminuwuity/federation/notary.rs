@@ -22,9 +22,7 @@ pub mod unstable {
 		method: POST,
 		rate_limited: true,
 		authentication: ServerSignatures,
-		history: {
-			unstable("org.continuwuity.msc4553") => "/_matrix/key/unstable/org.continuwuity.msc4556/query",
-		}
+		path: "/_matrix/key/unstable/org.continuwuity.msc4556/query",
 	}
 
 	#[request]

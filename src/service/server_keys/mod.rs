@@ -245,10 +245,8 @@ impl Service {
 			| None => self.discover_old_signing_keys().await,
 		};
 		let valid_until_ts = timepoint_from_now(VALID_UNTIL_TS_DURATION)
-			.map(|tp| {
-				MilliSecondsSinceUnixEpoch::from_system_time(tp)
-					.expect("key validity period must be before the heat death of the universe")
-			})
+			.ok()
+			.and_then(MilliSecondsSinceUnixEpoch::from_system_time)
 			.expect("key validity period must be before the heat death of the universe");
 		let server_keys = assign!(
 			ServerSigningKeys::new(self.services.server.name.clone(), valid_until_ts),

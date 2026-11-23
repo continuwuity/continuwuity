@@ -165,6 +165,14 @@ impl super::Service {
 	}
 }
 
+/// Removes extraneous signatures from the signature map. This is done to avoid
+/// leaking the signatures from notaries we've used, in case the response is
+/// being forwarded to a third party. This also reduces the risk of accidentally
+/// trusting a notary's signature as the origin's signature if `notaries` is
+/// empty.
+///
+/// Infallible & mutates the original canonical JSON object. Signatures by
+/// server names that cannot be parsed are always removed.
 pub fn strip_extraneous_signatures(
 	canonical: &mut CanonicalJsonObject,
 	origin: &ServerName,
