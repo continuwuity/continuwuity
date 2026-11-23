@@ -184,8 +184,12 @@ impl Service {
 		id: &str,
 	) -> Result<delete_rendezvous_session::msc4388::Response> {
 		let mut sessions = self.sessions.lock();
+		let now = Instant::now();
 
-		if sessions.remove(id).is_some() {
+		if sessions
+			.remove(id)
+			.is_some_and(|session| !session.is_expired(now))
+		{
 			Ok(delete_rendezvous_session::msc4388::Response::new())
 		} else {
 			Err!(Request(NotFound("Unknown session")))
