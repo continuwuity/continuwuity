@@ -26,6 +26,7 @@
               LD_LIBRARY_PATH = lib.makeLibraryPath (
                 [
                   pkgs.stdenv.cc.cc.lib
+                  pkgs.llvmPackages.libclang.lib
                 ]
                 ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
                   pkgs.liburing
