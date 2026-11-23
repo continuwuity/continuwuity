@@ -242,7 +242,6 @@ impl super::Service {
 							}
 						};
 						trace!(?origin_response.raw, "Got signing key response from origin");
-						self.add_signing_keys(&origin_response);
 						Self::track_result(&mut result, &mut still_missing, &origin_response.parsed);
 						if still_missing.is_empty() {
 							break;
@@ -301,7 +300,6 @@ impl super::Service {
 						continue;
 					};
 					trace!(response=?res.raw, "Got signing key response from origin");
-					self.add_signing_keys(&res);
 					Self::track_result(&mut result, &mut still_missing, &res.parsed);
 					if still_missing.is_empty() {
 						break;
@@ -401,7 +399,6 @@ impl super::Service {
 			.ok()?;
 
 		verify_key_from_response(key_id, &response.parsed, min_valid_ts)
-			.inspect(|_| self.add_signing_keys(&response))
 	}
 }
 

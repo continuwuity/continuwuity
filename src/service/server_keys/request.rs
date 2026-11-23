@@ -83,6 +83,8 @@ impl super::Service {
 			)));
 		}
 
+		self.add_signing_keys(&server_signing_key);
+
 		Ok(server_signing_key)
 	}
 
