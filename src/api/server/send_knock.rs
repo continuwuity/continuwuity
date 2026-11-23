@@ -63,7 +63,7 @@ pub(crate) async fn create_knock_event_v1_route(
 		return Err!(Request(Forbidden("Room version does not support knocking.")));
 	}
 
-	let (mut event, target_membership, sender, target) = validate_any_membership_event(
+	let (event, target_membership, sender, target) = validate_any_membership_event(
 		&services,
 		&body.pdu,
 		&room_version_rules,
@@ -82,8 +82,6 @@ pub(crate) async fn create_knock_event_v1_route(
 	if sender != target {
 		return Err!(Request(InvalidParam("Sender does not match state key")));
 	}
-
-	event.insert("event_id".to_owned(), body.event_id.as_str().into());
 
 	let pdu = PduEvent::from_id_val(&body.event_id, event.clone())
 		.map_err(|e| err!(Request(InvalidParam("Invalid knock event PDU: {e}"))))?;
