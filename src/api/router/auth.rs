@@ -194,6 +194,10 @@ impl CheckAuth for AccessTokenOptional {
 		authentication: Self::Output,
 		query: AuthQueryParams,
 	) -> Result<Self::Identity> {
+		if R::RATE_LIMITED && is_rendezvous_create_route(TypeId::of::<R>()) {
+			services.rendezvous.check_create_ratelimit(request_ip)?;
+		}
+
 		if let Some(authentication) = authentication {
 			check_access_token(
 				services,
@@ -278,6 +282,11 @@ impl CheckAuth for NoAccessToken {
 				err!(Request(Unauthorized(warn!("Failed to extract authorization: {}", err))))
 			})?;
 
+		let is_rendezvous_session = is_rendezvous_session_route(TypeId::of::<R>());
+		if R::RATE_LIMITED && is_rendezvous_session {
+			services.rendezvous.check_session_ratelimit(request_ip)?;
+		}
+
 		if let Some(authentication) = authentication {
 			check_access_token(services, &authentication, query, TypeId::of::<R>(), &[
 				OAuthClientScope::ApiFullAccess,
@@ -285,7 +294,7 @@ impl CheckAuth for NoAccessToken {
 			.await
 			.map(Some)
 		} else {
-			if R::RATE_LIMITED {
+			if R::RATE_LIMITED && !is_rendezvous_session {
 				check_unauthenticated_request_ratelimiting(services, request_ip)?;
 			}
 
@@ -449,6 +458,20 @@ async fn check_appservice_token(services: &Services, token: &str) -> Result<Regi
 	};
 
 	Ok(appservice_info)
+}
+
+fn is_rendezvous_create_route(route: TypeId) -> bool {
+	route == TypeId::of::<client::rendezvous::discover_rendezvous::msc4388::Request>()
+		|| route
+			== TypeId::of::<client::rendezvous::create_rendezvous_session::msc4388::Request>()
+}
+
+fn is_rendezvous_session_route(route: TypeId) -> bool {
+	route == TypeId::of::<client::rendezvous::get_rendezvous_session::msc4388::Request>()
+		|| route
+			== TypeId::of::<client::rendezvous::update_rendezvous_session::msc4388::Request>()
+		|| route
+			== TypeId::of::<client::rendezvous::delete_rendezvous_session::msc4388::Request>()
 }
 
 fn check_unauthenticated_request_ratelimiting(services: &Services, ip: IpAddr) -> Result<()> {
