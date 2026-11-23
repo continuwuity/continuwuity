@@ -1,20 +1,33 @@
 use std::{
+	net::IpAddr,
 	sync::Arc,
 	time::{Duration, Instant},
 };
 
-use conduwuit::{Err, Result, SyncMappedMutexGuard, SyncMutex, SyncMutexGuard, at, err, utils};
+use conduwuit::{
+	Err, Error, Result, SyncMappedMutexGuard, SyncMutex, SyncMutexGuard, at, err, utils,
+};
+use governor::{
+	DefaultKeyedRateLimiter, Quota, RateLimiter,
+	clock::{Clock, DefaultClock},
+};
 use lru_cache::LruCache;
+use nonzero_ext::nonzero;
 use ruma::{
 	OwnedTransactionId,
-	api::client::rendezvous::{
-		create_rendezvous_session, delete_rendezvous_session, get_rendezvous_session,
-		update_rendezvous_session,
+	api::{
+		client::rendezvous::{
+			create_rendezvous_session, delete_rendezvous_session, get_rendezvous_session,
+			update_rendezvous_session,
+		},
+		error::{ErrorKind, LimitExceededErrorData, RetryAfter},
 	},
 };
 
 pub struct Service {
 	sessions: SyncMutex<LruCache<String, Session>>,
+	create_ratelimiter: DefaultKeyedRateLimiter<IpAddr>,
+	session_ratelimiter: DefaultKeyedRateLimiter<IpAddr>,
 }
 
 struct Session {
@@ -50,6 +63,8 @@ impl crate::Service for Service {
 	fn build(_: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			sessions: SyncMutex::new(LruCache::new(Self::MAX_SESSIONS)),
+			create_ratelimiter: RateLimiter::keyed(Self::CREATE_RATELIMIT),
+			session_ratelimiter: RateLimiter::keyed(Self::SESSION_RATELIMIT),
 		}))
 	}
 
@@ -57,10 +72,37 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	const CREATE_RATELIMIT: Quota = Quota::per_minute(nonzero!(30_u32));
 	const MAX_DATA_SIZE_BYTES: usize = 4096;
 	const MAX_SESSIONS: usize = 256;
 	const SESSION_MAX_AGE: Duration = Duration::from_secs(300);
+	const SESSION_RATELIMIT: Quota = Quota::per_minute(nonzero!(300_u32));
 	const TOKEN_LENGTH: usize = 32;
+
+	pub fn check_create_ratelimit(&self, ip: IpAddr) -> Result<()> {
+		Self::check_ratelimiter(&self.create_ratelimiter, ip)
+	}
+
+	pub fn check_session_ratelimit(&self, ip: IpAddr) -> Result<()> {
+		Self::check_ratelimiter(&self.session_ratelimiter, ip)
+	}
+
+	fn check_ratelimiter(
+		ratelimiter: &DefaultKeyedRateLimiter<IpAddr>,
+		ip: IpAddr,
+	) -> Result<()> {
+		if let Err(not_until) = ratelimiter.check_key(&ip) {
+			let wait_time = not_until.wait_time_from(DefaultClock::default().now());
+			let mut data = LimitExceededErrorData::new();
+			data.retry_after = Some(RetryAfter::Delay(wait_time));
+			return Err(Error::BadRequest(
+				ErrorKind::LimitExceeded(data),
+				"Rate limit exceeded.",
+			));
+		}
+
+		Ok(())
+	}
 
 	fn create_token() -> String { utils::random_string(Self::TOKEN_LENGTH) }
 
