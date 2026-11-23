@@ -1,9 +1,12 @@
 use axum::extract::State;
 use conduwuit::{Err, Result};
 use ruma::{
-	api::client::discovery::{
-		discover_homeserver::{self, HomeserverInfo},
-		discover_policy_server, discover_support,
+	api::client::{
+		discovery::{
+			discover_homeserver::{self, HomeserverInfo},
+			discover_policy_server, discover_support,
+		},
+		rtc,
 	},
 	assign,
 };
@@ -37,17 +40,25 @@ pub(crate) async fn well_known_client(
 }
 
 /// # `GET /_matrix/client/v1/rtc/transports`
-/// # `GET /_matrix/client/unstable/org.matrix.msc4143/rtc/transports`
 ///
-/// Returns the list of MatrixRTC foci (transports) configured for this
-/// homeserver, implementing MSC4143.
+/// Returns the list of MatrixRTC transports configured for this homeserver,
+/// implementing the stable version of MSC4143.
 pub(crate) async fn get_rtc_transports(
 	State(services): State<crate::State>,
-	_body: Ruma<ruma::api::client::rtc::transports::msc4143::Request>,
-) -> Result<ruma::api::client::rtc::transports::msc4143::Response> {
-	Ok(ruma::api::client::rtc::transports::msc4143::Response::new(
-		services.config.matrix_rtc.foci.clone(),
-	))
+	_body: Ruma<rtc::transports::v1::Request>,
+) -> Result<rtc::transports::v1::Response> {
+	Ok(rtc::transports::v1::Response::new(services.config.matrix_rtc.foci.clone()))
+}
+
+/// # `GET /_matrix/client/unstable/org.matrix.msc4143/rtc/transports`
+///
+/// Unstable version of [`get_rtc_transports`], which names the response field
+/// `rtc_transports` instead of `transports`.
+pub(crate) async fn get_rtc_transports_unstable(
+	State(services): State<crate::State>,
+	_body: Ruma<rtc::transports::msc4143::Request>,
+) -> Result<rtc::transports::msc4143::Response> {
+	Ok(rtc::transports::msc4143::Response::new(services.config.matrix_rtc.foci.clone()))
 }
 
 /// # `GET /.well-known/matrix/support`

@@ -37,6 +37,7 @@ pub fn unstable_features(experiments: &Experiments) -> BTreeMap<String, bool> {
 		// MatrixRTC (https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
 		// Expected for spec v1.20/v2.0
 		("org.matrix.msc4143".to_owned(), true),
+		("org.matrix.msc4143.stable".to_owned(), true),
 		// Simplified Sliding sync (https://github.com/matrix-org/matrix-spec-proposals/pull/4186)
 		// Expected for spec v1.20/v2.0
 		("org.matrix.simplified_msc3575".to_owned(), true),

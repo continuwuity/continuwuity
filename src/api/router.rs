@@ -189,6 +189,7 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::well_known_client)
 		.ruma_route(&client::well_known_policy_server)
 		.ruma_route(&client::get_rtc_transports)
+		.ruma_route(&client::get_rtc_transports_unstable)
 		.ruma_route(&client::room_initial_sync_route)
 		.ruma_route(&client::discover_rendezvous_route)
 		.ruma_route(&client::create_rendezvous_session_route)

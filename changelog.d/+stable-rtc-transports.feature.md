@@ -1,0 +1,1 @@
+Added support for the stable MatrixRTC transports discovery endpoint (`GET /_matrix/client/v1/rtc/transports`) from the accepted MSC4143, advertised via the `org.matrix.msc4143.stable` unstable feature. The unstable endpoint remains available. Contributed by @Henry-Hiles (QuadRadical).
