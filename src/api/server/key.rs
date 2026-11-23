@@ -122,24 +122,40 @@ async fn query_inner(
 	// To avoid overloading the server, we'll apply a semaphore to limit how
 	// many futures can be active at a time.
 	let width = automatic_width();
-	let sem = if v2 && penalise {
+
+	let semaphore: Option<Arc<tokio::sync::Semaphore>> = if v2 && penalise {
 		Some(Arc::new(tokio::sync::Semaphore::new(width)))
 	} else {
 		None
 	};
+
 	for (server_name, queries) in body.clone() {
+		let server_keys = services.server_keys.clone();
+		let semaphore = semaphore.clone();
+
 		futs.spawn_on(
-			acquire_keys_as_notary(
-				services.server_keys.clone(),
-				server_name,
-				queries,
-				start.1,
-				sem.clone(),
-			),
+			async move {
+				let _permit = if let Some(sem) = semaphore {
+					let cost = queries
+						.len()
+						.saturating_add(1)
+						.min(automatic_width())
+						.try_into()
+						.unwrap_or(u32::MAX);
+
+					sem.acquire_many_owned(cost).await.ok()
+				} else {
+					None
+				};
+
+				acquire_keys_as_notary(server_keys, server_name, queries, start.1).await
+			},
 			services.server.runtime(),
 		);
 	}
+
 	let mut response = Vec::with_capacity(total_queried_keys);
+
 	while let Some(Ok(v)) = futs.join_next().await {
 		response.extend(v);
 	}
@@ -166,33 +182,19 @@ pub(crate) async fn get_remote_server_keys_route(
 		body.server_name.clone(),
 		BTreeMap::new(),
 		body.minimum_valid_until_ts,
-		None,
 	)
 	.await;
 
 	Ok(get_remote_server_keys::v2::Response::new(server_keys))
 }
 
-#[tracing::instrument(skip(server_keys, queries, start, semaphore))]
+#[tracing::instrument(skip(server_keys, queries, start))]
 async fn acquire_keys_as_notary(
 	server_keys: Arc<server_keys::Service>,
 	remote: OwnedServerName,
 	queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
 	start: MilliSecondsSinceUnixEpoch,
-	semaphore: Option<Arc<tokio::sync::Semaphore>>,
 ) -> Vec<Raw<ServerSigningKeys>> {
-	let cost = queries
-		.len()
-		.saturating_add(1)
-		.min(automatic_width())
-		.try_into()
-		.unwrap_or(u32::MAX);
-	let _permit = if let Some(sem) = semaphore {
-		sem.acquire_many_owned(cost).await.ok()
-	} else {
-		None
-	};
-
 	let mut candidate_remote_keys = Vec::with_capacity(queries.len().max(1));
 
 	// If we haven't contacted the origin recently, we need to do that now
