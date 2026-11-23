@@ -193,7 +193,11 @@ async fn knock_room_by_id_helper(
 		.server_in_room(services.globals.server_name(), room_id)
 		.await;
 
-	if !server_in_room && !servers.iter().any(|sn| services.globals.server_is_ours(sn)) {
+	if !server_in_room
+		&& !servers
+			.iter()
+			.any(|sn| !services.globals.server_is_ours(sn))
+	{
 		return Err!(Request(NotFound(
 			"Room {room_id} not found and no remote servers were provided to discover it"
 		)));
