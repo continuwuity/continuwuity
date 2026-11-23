@@ -73,6 +73,9 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 		// 413
 		| TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
 
+		// 409
+		| ConcurrentWrite => StatusCode::CONFLICT,
+
 		// 404
 		| Unrecognized | NotFound => StatusCode::NOT_FOUND,
 
