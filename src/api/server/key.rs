@@ -10,22 +10,17 @@ use conduwuit::{
 	Err, Result,
 	config::experiments::ToggledExperiment,
 	debug, debug_info, error,
-	utils::{
-		ReadyExt,
-		stream::{BroadbandExt, automatic_width},
-		to_canonical_object,
-	},
+	utils::{ReadyExt, stream::automatic_width},
 };
 use futures::StreamExt;
 use ruma::{
-	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName,
+	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId,
 	api::federation::discovery::{
 		ServerSigningKeys, get_remote_server_keys, get_remote_server_keys_batch,
 		get_remote_server_keys_batch::v2::QueryCriteria, get_server_keys,
 	},
 	serde::Raw,
 };
-use serde_json::value::to_raw_value;
 use service::{server_keys, server_keys::in_one_week};
 
 use crate::router::Ruma;
@@ -138,7 +133,6 @@ async fn query_inner(
 		futs.spawn_on(
 			acquire_keys_as_notary(
 				services.server_keys.clone(),
-				services.globals.server_name().to_owned(),
 				server_name,
 				queries,
 				start.1,
@@ -162,36 +156,9 @@ async fn query_inner(
 	Ok(response)
 }
 
-async fn sign_ssk(
-	server_keys: &server_keys::Service,
-	ssk: &Raw<ServerSigningKeys>,
-	server_name: &ServerName,
-	our_name: &ServerName,
-) -> Result<Raw<ServerSigningKeys>> {
-	if server_name == our_name {
-		// Should already be signed by us if we got this far.
-		debug_info!(
-			object=?ssk,
-			%server_name,
-			%our_name,
-			"Refusing to sign our own signing keys response (should already be signed)"
-		);
-		return to_raw_value(ssk)
-			.map(Raw::<ServerSigningKeys>::from_json)
-			.map_err(Into::into);
-	}
-	let mut canonical = to_canonical_object(ssk)?;
-	server_keys.sign_json(&mut canonical)?;
-	server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[our_name]);
-	to_raw_value(&canonical)
-		.map(Raw::<ServerSigningKeys>::from_json)
-		.map_err(Into::into)
-}
-
-#[tracing::instrument(skip(server_keys, my_name, queries, start, semaphore))]
+#[tracing::instrument(skip(server_keys, queries, start, semaphore))]
 async fn acquire_keys_as_notary(
 	server_keys: Arc<server_keys::Service>,
-	my_name: OwnedServerName,
 	remote: OwnedServerName,
 	mut queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
 	start: MilliSecondsSinceUnixEpoch,
@@ -215,21 +182,23 @@ async fn acquire_keys_as_notary(
 	// First contact the origin (if we're allowed to)
 	if server_keys.notary_may_contact_origin(&remote) {
 		debug_info!("Asking remote directly for verify keys");
-		if let Ok(res) = server_keys.origin_request(remote.clone(), start).await
-			&& let Ok(ssk) = sign_ssk(&server_keys, &res.raw, &remote, &my_name).await
+
+		if let Ok(remote_keys) = server_keys.origin_request(remote.clone(), start).await
+			&& let Ok(signed_remote_keys) =
+				server_keys.self_sign_signing_keys(&remote, &remote_keys.raw)
 		{
 			let index = results.len();
-			results.push(ssk);
-			for key_id in res
+			results.push(signed_remote_keys);
+			for key_id in remote_keys
 				.parsed
 				.verify_keys
 				.keys()
-				.chain(res.parsed.old_verify_keys.keys())
+				.chain(remote_keys.parsed.old_verify_keys.keys())
 			{
 				if fetch_all
 					|| queries.get(key_id).is_some_and(|c| {
 						c.minimum_valid_until_ts
-							.is_none_or(|m| res.parsed.valid_until_ts >= m)
+							.is_none_or(|m| remote_keys.parsed.valid_until_ts >= m)
 					}) {
 					queries.remove(key_id);
 					keymap.insert(key_id.to_owned(), index);
@@ -245,22 +214,17 @@ async fn acquire_keys_as_notary(
 		// origin, just fetch any fresh responses we have.
 		server_keys
 			.signing_keys_for(&remote)
-			.broad_filter_map(|ssk| {
-				let server_name = &remote;
-				let my_name = &my_name;
-				let server_keys = &server_keys;
-				async move {
-					if ssk.parsed.valid_until_ts > in_one_week()
-						|| ssk.parsed.valid_until_ts < start
-					{
-						return None;
-					}
-
-					sign_ssk(server_keys, &ssk.raw, server_name, my_name)
-						.await
-						.map(|signed_ssk| (ssk, signed_ssk))
-						.ok()
+			.ready_filter_map(|remote_keys| {
+				if remote_keys.parsed.valid_until_ts > in_one_week()
+					|| remote_keys.parsed.valid_until_ts < start
+				{
+					return None;
 				}
+
+				server_keys
+					.self_sign_signing_keys(&remote, &remote_keys.raw)
+					.map(|signed_remote_keys| (remote_keys, signed_remote_keys))
+					.ok()
 			})
 			.ready_for_each(|(ssk, signed_ssk)| {
 				let idx = results.len();
@@ -288,23 +252,23 @@ async fn acquire_keys_as_notary(
 
 		let minimum_valid_until_ts = criteria.clone().minimum_valid_until_ts.unwrap_or(start);
 
-		let Some(ssk) = server_keys.get_signing_key(&remote, &key_id).await else {
+		let Some(remote_keys) = server_keys.get_signing_key(&remote, &key_id).await else {
 			debug!(%remote, %key_id, "Could not find a matching signing key locally.");
 			continue;
 		};
 
-		if ssk.parsed.valid_until_ts < minimum_valid_until_ts
-			|| ssk.parsed.valid_until_ts > in_one_week()
+		if remote_keys.parsed.valid_until_ts < minimum_valid_until_ts
+			|| remote_keys.parsed.valid_until_ts > in_one_week()
 		{
 			debug!(
 				%key_id,
-				valid_until_ts=?ssk.parsed.valid_until_ts,
+				valid_until_ts=?remote_keys.parsed.valid_until_ts,
 				?minimum_valid_until_ts,
 				"Stored verify key does not satisfy query criteria"
 			);
 			continue;
 		}
-		if let Some(old_verify_key) = ssk.parsed.old_verify_keys.get(&key_id) {
+		if let Some(old_verify_key) = remote_keys.parsed.old_verify_keys.get(&key_id) {
 			if old_verify_key.expired_ts < minimum_valid_until_ts {
 				debug!(
 					%key_id,
@@ -316,10 +280,15 @@ async fn acquire_keys_as_notary(
 			}
 		}
 
-		debug!(%key_id, ?ssk.parsed, "Found key locally");
-		let rep_key_ids = ssk.parsed.verify_keys.keys().cloned().collect::<Vec<_>>();
-		let Ok(signed_ssk) = sign_ssk(&server_keys, &ssk.raw, &remote, &my_name)
-			.await
+		debug!(%key_id, ?remote_keys.parsed, "Found key locally");
+		let rep_key_ids = remote_keys
+			.parsed
+			.verify_keys
+			.keys()
+			.cloned()
+			.collect::<Vec<_>>();
+		let Ok(signed_remote_keys) = server_keys
+			.self_sign_signing_keys(&remote, &remote_keys.raw)
 			.inspect_err(
 				|e| error!(%key_id, %remote, "Failed to sign signing keys chunk: {e:?}"),
 			)
@@ -328,7 +297,7 @@ async fn acquire_keys_as_notary(
 		};
 
 		let idx = results.len();
-		results.push(signed_ssk);
+		results.push(signed_remote_keys);
 		keymap.insert(key_id, idx);
 		for key_id in rep_key_ids {
 			keymap.insert(key_id, idx);
@@ -354,44 +323,35 @@ pub(crate) async fn get_remote_server_keys_route(
 	if services
 		.server_keys
 		.notary_may_contact_origin(&body.server_name)
-		&& let Ok(response) = services
+		&& let Ok(remote_keys) = services
 			.server_keys
 			.origin_request(body.server_name.clone(), min_valid_ts)
 			.await
 	{
-		return sign_ssk(
-			&services.server_keys,
-			&response.raw,
-			&body.server_name,
-			services.globals.server_name(),
-		)
-		.await
-		.map(|r| Ok(get_remote_server_keys::v2::Response::new(vec![r])))?;
-	}
+		let signed_remote_keys = services
+			.server_keys
+			.self_sign_signing_keys(&body.server_name, &remote_keys.raw)?;
 
-	let response = services
-		.server_keys
-		.signing_keys_for(&body.server_name)
-		.broad_filter_map(|ssk| {
-			let server_name = body.server_name.clone();
-			async move {
-				if ssk.parsed.valid_until_ts > in_one_week()
-					|| ssk.parsed.valid_until_ts < min_valid_ts
+		Ok(get_remote_server_keys::v2::Response::new(vec![signed_remote_keys]))
+	} else {
+		let signed_remote_keys = services
+			.server_keys
+			.signing_keys_for(&body.server_name)
+			.ready_filter_map(|remote_keys| {
+				if remote_keys.parsed.valid_until_ts > in_one_week()
+					|| remote_keys.parsed.valid_until_ts < min_valid_ts
 				{
 					return None;
 				}
 
-				sign_ssk(
-					&services.server_keys,
-					&ssk.raw,
-					server_name.as_ref(),
-					services.globals.server_name(),
-				)
-				.await
-				.ok()
-			}
-		})
-		.collect::<Vec<_>>()
-		.await;
-	Ok(get_remote_server_keys::v2::Response::new(response))
+				services
+					.server_keys
+					.self_sign_signing_keys(&body.server_name, &remote_keys.raw)
+					.ok()
+			})
+			.collect::<Vec<_>>()
+			.await;
+
+		Ok(get_remote_server_keys::v2::Response::new(signed_remote_keys))
+	}
 }

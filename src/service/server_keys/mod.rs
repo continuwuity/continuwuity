@@ -14,7 +14,7 @@ use std::{
 use assign::assign;
 use async_trait::async_trait;
 use conduwuit::{
-	Result, Server, SyncRwLock,
+	Result, Server, SyncRwLock, debug_info,
 	utils::{IterStream, ReadyExt, stream::TryIgnore, timepoint_from_now, to_canonical_object},
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
@@ -303,5 +303,30 @@ impl Service {
 		}
 
 		old_keys
+	}
+
+	/// Canonicalize and sign another server's signing keys.
+	pub fn self_sign_signing_keys(
+		&self,
+		remote_server: &ServerName,
+		remote_keys: &Raw<ServerSigningKeys>,
+	) -> Result<Raw<ServerSigningKeys>> {
+		let this_server = self.services.globals.server_name();
+
+		let mut canonical = to_canonical_object(remote_keys)?;
+
+		if remote_server == this_server {
+			debug_info!(
+				%remote_server,
+				object=?remote_keys,
+				"Refusing to sign our own signing keys response (should already be signed)"
+			);
+		} else {
+			self.sign_json(&mut canonical)?;
+
+			strip_extraneous_signatures(&mut canonical, remote_server, &[this_server]);
+		}
+
+		Ok(Raw::<ServerSigningKeys>::from_json(to_raw_value(&canonical)?))
 	}
 }
