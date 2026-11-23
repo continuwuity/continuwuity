@@ -38,12 +38,12 @@ mimalloc = [
 ]
 jemalloc_conf = []
 jemalloc_prof = [
-    "tikv-jemalloc-sys/profiling",
+    "tikv-jemalloc-sys?/profiling",
 ]
 jemalloc_stats = [
-    "tikv-jemalloc-sys/stats",
-    "tikv-jemalloc-ctl/stats",
-    "tikv-jemallocator/stats",
+    "tikv-jemalloc-sys?/stats",
+    "tikv-jemalloc-ctl?/stats",
+    "tikv-jemallocator?/stats",
 ]
 perf_measurements = []
 release_max_log_level = [

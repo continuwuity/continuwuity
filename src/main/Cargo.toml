@@ -48,6 +48,7 @@ assets = [
 [features]
 default = [
     "standard",
+    "jemalloc",
     "ring",
     "bindgen-runtime", # replace with bindgen-static on alpine
 ]
@@ -57,7 +58,6 @@ standard = [
     "element_hacks",
     "gzip_compression",
     "io_uring",
-    "jemalloc",
     "jemalloc_conf",
     "journald",
     "media_thumbnail",
