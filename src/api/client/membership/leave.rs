@@ -88,19 +88,13 @@ pub async fn leave_room(
 		.server_in_room(services.globals.server_name(), room_id)
 		.eq(&false);
 
-	let not_knocked = services
-		.rooms
-		.state_cache
-		.is_knocked(user_id, room_id)
-		.eq(&false);
-
 	pin_mut!(is_banned, is_disabled);
 
 	/*
 	there are three possible cases when leaving a room:
 	1. the room is banned or disabled, so we're not federating with it.
 	2. nobody on the homeserver is in the room, which can happen if the user is rejecting an invite
-	   to a room that we don't have any members in.
+	   or rescinding a knock for a room that we don't have any members in.
 	3. someone else on the homeserver is in the room. in this case we can leave like normal by sending a PDU over federation.
 
 	in cases 1 and 2, we have to update the state cache using `mark_as_left` directly.
@@ -113,7 +107,7 @@ pub async fn leave_room(
 		// case 1: the room is banned/disabled. we don't want to federate with
 		// another server to leave, so we can't create an outlier PDU.
 		None
-	} else if dont_have_room.and(not_knocked).await {
+	} else if dont_have_room.await {
 		// case 2: ask a remote server to assist us with leaving
 		// we always mark the room as left locally, regardless of if the
 		// federated leave failed
