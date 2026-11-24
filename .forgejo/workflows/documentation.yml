@@ -48,7 +48,7 @@ jobs:
 
       - name: Build Rspress documentation
         env:
-          SITE_PATH: ${{ github.ref != 'refs/heads/main' && format('/{0}/', '${{ forgejo.event.number }}') || '/' }}
+          SITE_PATH: ${{ github.ref != 'refs/heads/main' && format('/@{0}/', forgejo.event.number) || '/' }}
         run: npm run docs:build
 
       - name: Install Wrangler
@@ -69,14 +69,12 @@ jobs:
 
       - name: Deploy to Grebedoc (Preview)
         if: github.ref != 'refs/heads/main'
-        # Needs http for at least first deploy per docs:
-        # https://codeberg.org/git-pages/git-pages-cli#forge-authorization
-        # (ctrl-F for "it is not possible to publish a site")
         run: |
-          ~/go/bin/git-pages-cli https://preview.continuwuity.org \
-          --password "${{ secrets.GREBEDOC_PASSWORD }}" \
+          ~/go/bin/git-pages-cli https://preview.continuwuity.org/@${{ forgejo.event.number }} \
+          --server grebedoc.dev \
+          --token "${{ forgejo.token }}" \
           --upload-dir doc_build \
-          --path "${{ forgejo.event.number }}" \
+          --pretty-urls \
           --expires 14 \
           --comment "${{ forgejo.sha }}" \
           --verbose
