@@ -54,22 +54,21 @@ jobs:
       - name: Install Rspress and dependencies
         run: npm ci
 
-      - name: Build Rspress documentation
+      - name: Build documentation with Rspress
         env:
           SITE_PATH: ${{ github.ref != 'refs/heads/main' && format('/@{0}/', forgejo.event.number) || '/' }}
         run: npm run docs:build
 
-      - name: Install Wrangler
-        if: github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != '' && secrets.CLOUDFLARE_API_TOKEN != ''
-        run: npm install --save-dev wrangler@latest
-
-      - name: Deploy to Cloudflare Pages (Production)
-        if: github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != '' && secrets.CLOUDFLARE_API_TOKEN != ''
-        uses: https://github.com/cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
-        with:
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: pages deploy ./doc_build --branch="main" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}"
+      - name: Deploy to Grebedoc (Production)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          go tool git-pages-cli https://continuwuity.org \
+          --server grebedoc.dev \
+          --token "${{ forgejo.token }}" \
+          --upload-dir doc_build \
+          --pretty-urls \
+          --comment "${{ forgejo.sha }}" \
+          --verbose
 
       - name: Deploy to Grebedoc (Preview)
         if: github.ref != 'refs/heads/main'
