@@ -16,10 +16,7 @@
               pkgs.nodejs
               pkgs.pkg-config
             ]
-            ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-              pkgs.liburing
-              pkgs.rust-jemalloc-sys-unprefixed
-            ];
+            ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.liburing;
 
             env = {
               LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
@@ -28,10 +25,7 @@
                   pkgs.stdenv.cc.cc.lib
                   pkgs.llvmPackages.libclang.lib
                 ]
-                ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-                  pkgs.liburing
-                  pkgs.jemalloc
-                ]
+                ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.liburing
               );
             }
             // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
