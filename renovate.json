@@ -93,6 +93,13 @@
             "groupName": "node-patch-updates"
         },
         {
+            "description": "Batch patch-level Go dependency updates",
+            "matchManagers": ["gomod"],
+            "matchUpdateTypes": ["patch"],
+            "postUpdateOptions": ["gomodTidy"],
+            "groupName": "go-patch-updates"
+        },
+        {
             "description": "Pin forgejo artifact actions to prevent breaking changes",
             "matchManagers": ["github-actions"],
             "matchPackageNames": ["forgejo/upload-artifact", "forgejo/download-artifact"],

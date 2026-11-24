@@ -28,6 +28,14 @@ jobs:
         id: runner-env
         uses: https://forgejo.ellis.link/continuwuation/detect-versions@d39555789fed25b8eb8e086d9f199c514dfa311e # v1
 
+      - name: Setup Go
+        if: steps.runner-env.outputs.go_minor == '' || steps.runner-env.outputs.go_minor < '27'
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
+        with:
+          go-version: '1.27'
+          go-version-file: 'go.mod'
+          cache-dependency-path: 'go.sum'
+
       - name: Setup Node.js
         if: steps.runner-env.outputs.node_major == '' || steps.runner-env.outputs.node_major < '20'
         uses: https://github.com/actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
@@ -43,7 +51,7 @@ jobs:
             continuwuity-rspress-${{ steps.runner-env.outputs.slug }}-${{ steps.runner-env.outputs.arch }}-node-${{ steps.runner-env.outputs.node_version }}-
             continuwuity-rspress-${{ steps.runner-env.outputs.slug }}-${{ steps.runner-env.outputs.arch }}-node-
 
-      - name: Install dependencies
+      - name: Install Rspress and dependencies
         run: npm ci
 
       - name: Build Rspress documentation
@@ -63,14 +71,10 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: pages deploy ./doc_build --branch="main" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}"
 
-      - name: Install git-pages-cli (Preview)
-        if: github.ref != 'refs/heads/main'
-        run: go install codeberg.org/git-pages/git-pages-cli@latest
-
       - name: Deploy to Grebedoc (Preview)
         if: github.ref != 'refs/heads/main'
         run: |
-          ~/go/bin/git-pages-cli https://preview.continuwuity.org/@${{ forgejo.event.number }} \
+          go tool git-pages-cli https://preview.continuwuity.org/@${{ forgejo.event.number }} \
           --server grebedoc.dev \
           --token "${{ forgejo.token }}" \
           --upload-dir doc_build \
