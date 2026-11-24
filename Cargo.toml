@@ -584,7 +584,7 @@ version = "0.3.18"
 version = "0.3.0"
 
 [workspace.dependencies.resolvematrix]
-version = "1.5.0"
+version = "1.6.0"
 features = ["unstable-msc4188"]
 
 [workspace.dependencies.serde_urlencoded]
