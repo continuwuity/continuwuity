@@ -79,6 +79,7 @@ export default defineConfig({
         enableContentAnimation: true,
         enableAppearanceAnimation: false,
         footer: {},
+        darkMode: 'auto'
     },
 
     plugins: [pluginClientRedirects({
