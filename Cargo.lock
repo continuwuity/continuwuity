@@ -3992,7 +3992,7 @@ dependencies = [
 [[package]]
 name = "opentelemetry-instrumentation-tower"
 version = "0.19.0"
-source = "git+https://github.com/open-telemetry/opentelemetry-rust-contrib?rev=6bbbc337aab0bcf10d7799c3e5b5ced75920491a#6bbbc337aab0bcf10d7799c3e5b5ced75920491a"
+source = "git+https://github.com/open-telemetry/opentelemetry-rust-contrib?rev=08495866132a3fafbb62158b8eafbd42983e5a0b#08495866132a3fafbb62158b8eafbd42983e5a0b"
 dependencies = [
  "axum",
  "http",

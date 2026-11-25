@@ -432,7 +432,7 @@ version = "0.33.1"
 
 [workspace.dependencies.opentelemetry-instrumentation-tower]
 git = "https://github.com/open-telemetry/opentelemetry-rust-contrib"
-rev = "6bbbc337aab0bcf10d7799c3e5b5ced75920491a"
+rev = "08495866132a3fafbb62158b8eafbd42983e5a0b"
 default-features = false
 features = ["axum"]
 
