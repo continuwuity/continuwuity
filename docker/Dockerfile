@@ -167,8 +167,8 @@ ARG RUST_PROFILE=release
 ARG CARGO_FEATURES="default"
 
 # Build the binary
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git/db,sharing=locked \
     --mount=type=cache,target=/app/target,id=continuwuity-cargo-target-${TARGET_CPU}-${TARGETPLATFORM}-${RUST_PROFILE} \
     bash <<'EOF'
     set -euo pipefail
@@ -205,8 +205,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 EOF
 
 # Generate Software Bill of Materials (SBOM)
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git/db,sharing=locked \
     bash <<'EOF'
     set -euo pipefail
     set -o xtrace
