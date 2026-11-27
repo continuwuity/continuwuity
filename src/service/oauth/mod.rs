@@ -9,8 +9,9 @@ use base64::Engine;
 use conduwuit::{
 	Result, SyncMutex,
 	config::experiments::ToggledExperiment,
-	info,
+	error, info,
 	utils::{self, hash::sha256},
+	warn,
 };
 use database::{Deserialized, Json, Map};
 use itertools::Itertools;
@@ -265,9 +266,12 @@ impl Service {
 		device_id: &DeviceId,
 		session_info: &SessionInfo,
 	) {
-		if session_info.previous_refresh_token.is_some() {
-			let mut session_info = session_info.clone();
+		if let Some(previous_refresh_token) = &session_info.previous_refresh_token {
+			self.db
+				.refreshtoken_refreshtokeninfo
+				.remove(previous_refresh_token);
 
+			let mut session_info = session_info.clone();
 			session_info.previous_refresh_token = None;
 
 			self.db
@@ -723,13 +727,21 @@ impl Service {
 
 		assert_eq!(&client_id, &refresh_token_info.client_id, "refresh token client id mismatch");
 
-		let mut session_info = self
+		let Some(mut session_info) = self
 			.get_session_info_for_device(
 				&refresh_token_info.user_id,
 				&refresh_token_info.device_id,
 			)
 			.await
-			.expect("session info should exist");
+		else {
+			warn!(
+				user_id = ?refresh_token_info.user_id,
+				device_id = ?refresh_token_info.device_id,
+				"Refresh token exists for a missing OAuth session"
+			);
+			self.db.refreshtoken_refreshtokeninfo.remove(&refresh_token);
+			return Err(OAuthError::invalid_grant("Invalid refresh token"));
+		};
 
 		assert_eq!(&client_id, &session_info.client_id, "session info client id mismatch");
 
@@ -772,9 +784,14 @@ impl Service {
 		} else {
 			// The client is trying to use a refresh token that isn't their
 			// current or previous one, but still has information in the
-			// database. This is definitely not a legal state, so we need to
-			// bail out.
-			panic!("refresh token is not current or previous for its session");
+			// database. Clean up the stale entry and reject the grant.
+			error!(
+				user_id = ?refresh_token_info.user_id,
+				device_id = ?refresh_token_info.device_id,
+				"Refresh token is neither current nor previous for its session"
+			);
+			self.db.refreshtoken_refreshtokeninfo.remove(&refresh_token);
+			return Err(OAuthError::invalid_grant("Invalid refresh token"));
 		}
 
 		session_info.temporary_scopes.clear();
@@ -818,6 +835,11 @@ impl Service {
 			self.db
 				.refreshtoken_refreshtokeninfo
 				.remove(&session_info.current_refresh_token);
+			if let Some(previous_refresh_token) = session_info.previous_refresh_token {
+				self.db
+					.refreshtoken_refreshtokeninfo
+					.remove(&previous_refresh_token);
+			}
 			self.db
 				.userdeviceid_oauthsessioninfo
 				.del((user_id, device_id));

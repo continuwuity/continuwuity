@@ -92,6 +92,7 @@ impl super::Service {
 			self.db.token_userdeviceid.remove(&old_token);
 			self.db.userdeviceid_tokenexpires.del(userdeviceid);
 		}
+		self.db.userdeviceid_previoustoken.del(userdeviceid);
 
 		// Remove todevice events
 		let prefix = (user_id, device_id, Interfix);
