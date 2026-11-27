@@ -326,7 +326,7 @@ async fn check_access_token(
 
 		if session_info
 			.as_ref()
-			.is_some_and(|info| info.has_previous_refresh_token())
+			.is_some_and(service::oauth::SessionInfo::has_previous_refresh_token)
 		{
 			services
 				.oauth
