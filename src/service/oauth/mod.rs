@@ -10,7 +10,7 @@ use conduwuit::{
 	Result, SyncMutex,
 	config::experiments::ToggledExperiment,
 	error, info,
-	utils::{self, hash::sha256},
+	utils::{self, MutexMap, hash::sha256},
 	warn,
 };
 use database::{Deserialized, Json, Map};
@@ -37,9 +37,19 @@ use crate::{
 pub mod client_metadata;
 pub mod grant;
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct SessionLockKey(OwnedUserId, OwnedDeviceId);
+
+impl From<&(&UserId, &DeviceId)> for SessionLockKey {
+	fn from((user_id, device_id): &(&UserId, &DeviceId)) -> Self {
+		Self((*user_id).to_owned(), (*device_id).to_owned())
+	}
+}
+
 pub struct Service {
 	services: Services,
 	db: Data,
+	session_mutex: MutexMap<SessionLockKey, ()>,
 	tickets: SyncMutex<HashMap<String, HashMap<OAuthTicket, SystemTime>>>,
 	pending_auth_code_grants: SyncMutex<LruCache<String, PendingAuthCodeGrant>>,
 	pending_device_code_grants: SyncMutex<LruCache<String, PendingDeviceCodeGrant>>,
@@ -75,6 +85,9 @@ impl SessionInfo {
 	pub fn scopes(&self) -> BTreeSet<OAuthClientScope> {
 		self.scopes.union(&self.temporary_scopes).cloned().collect()
 	}
+
+	#[must_use]
+	pub fn has_previous_refresh_token(&self) -> bool { self.previous_refresh_token.is_some() }
 
 	#[must_use]
 	pub fn scope_string(&self, device_id: &DeviceId) -> String {
@@ -184,6 +197,7 @@ impl crate::Service for Service {
 				userdeviceid_oauthsessioninfo: args.db["userdeviceid_oauthsessioninfo"].clone(),
 				refreshtoken_refreshtokeninfo: args.db["refreshtoken_refreshtokeninfo"].clone(),
 			},
+			session_mutex: MutexMap::new(),
 			tickets: SyncMutex::default(),
 			pending_auth_code_grants: SyncMutex::new(LruCache::new(Self::MAX_PENDING_GRANTS)),
 			pending_device_code_grants: SyncMutex::new(LruCache::new(Self::MAX_PENDING_GRANTS)),
@@ -260,19 +274,18 @@ impl Service {
 	}
 
 	/// Clear a session's previous refresh token, if it has one.
-	pub fn clear_previous_refresh_token(
-		&self,
-		user_id: &UserId,
-		device_id: &DeviceId,
-		session_info: &SessionInfo,
-	) {
-		if let Some(previous_refresh_token) = &session_info.previous_refresh_token {
+	pub async fn clear_previous_refresh_token(&self, user_id: &UserId, device_id: &DeviceId) {
+		let _lock = self.session_mutex.lock(&(user_id, device_id)).await;
+
+		let Some(mut session_info) = self.get_session_info_for_device(user_id, device_id).await
+		else {
+			return;
+		};
+
+		if let Some(previous_refresh_token) = session_info.previous_refresh_token.take() {
 			self.db
 				.refreshtoken_refreshtokeninfo
-				.remove(previous_refresh_token);
-
-			let mut session_info = session_info.clone();
-			session_info.previous_refresh_token = None;
+				.remove(&previous_refresh_token);
 
 			self.db
 				.userdeviceid_oauthsessioninfo
@@ -607,6 +620,11 @@ impl Service {
 			.device_id
 			.ok_or_else(|| OAuthError::invalid_grant("No device ID scope supplied"))?;
 
+		let _lock = self
+			.session_mutex
+			.lock(&(&*authorizing_user, &*device_id))
+			.await;
+
 		let session_info = if self
 			.services
 			.users
@@ -732,6 +750,11 @@ impl Service {
 
 		assert_eq!(&client_id, &refresh_token_info.client_id, "refresh token client id mismatch");
 
+		let _lock = self
+			.session_mutex
+			.lock(&(&*refresh_token_info.user_id, &*refresh_token_info.device_id))
+			.await;
+
 		let Some(mut session_info) = self
 			.get_session_info_for_device(
 				&refresh_token_info.user_id,
@@ -837,6 +860,7 @@ impl Service {
 	}
 
 	pub async fn remove_session(&self, user_id: &UserId, device_id: &DeviceId) {
+		let _lock = self.session_mutex.lock(&(user_id, device_id)).await;
 		let session_info = self.get_session_info_for_device(user_id, device_id).await;
 
 		if let Some(session_info) = session_info {

@@ -324,12 +324,14 @@ async fn check_access_token(
 			.get_session_info_for_device(&sender_user, &sender_device)
 			.await;
 
-		if let Some(session_info) = &session_info {
-			services.oauth.clear_previous_refresh_token(
-				&sender_user,
-				&sender_device,
-				session_info,
-			);
+		if session_info
+			.as_ref()
+			.is_some_and(|info| info.has_previous_refresh_token())
+		{
+			services
+				.oauth
+				.clear_previous_refresh_token(&sender_user, &sender_device)
+				.await;
 		}
 
 		// Locked users can only use /logout and /logout/all
