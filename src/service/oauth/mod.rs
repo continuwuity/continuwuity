@@ -31,7 +31,7 @@ use crate::{
 			ResponseMode, TokenRequest, TokenRequestType, TokenResponse, TokenType,
 		},
 	},
-	users::{self, DeviceToken},
+	users::{self, DeviceToken, PreviousTokenAction},
 };
 
 pub mod client_metadata;
@@ -640,7 +640,12 @@ impl Service {
 
 			self.services
 				.users
-				.set_token(&authorizing_user, &device_id, access_token.clone())
+				.set_token(
+					&authorizing_user,
+					&device_id,
+					access_token.clone(),
+					PreviousTokenAction::Replace,
+				)
 				.await
 				.expect("should be able to set access token");
 
@@ -747,7 +752,7 @@ impl Service {
 
 		let new_refresh_token = Self::generate_token();
 
-		if refresh_token == session_info.current_refresh_token {
+		let previous_token_action = if refresh_token == session_info.current_refresh_token {
 			// The client is refreshing with their current refresh token.
 			// We need to generate a new refresh token and save this token as
 			// the previous one.
@@ -767,6 +772,7 @@ impl Service {
 			}
 
 			session_info.previous_refresh_token = Some(refresh_token);
+			PreviousTokenAction::Replace
 		} else if Some(&refresh_token) == session_info.previous_refresh_token.as_ref() {
 			// The client is refreshing with their previous refresh token,
 			// probably because they didn't get the new one we made for them. We
@@ -781,6 +787,7 @@ impl Service {
 			session_info
 				.current_refresh_token
 				.clone_from(&new_refresh_token);
+			PreviousTokenAction::Preserve
 		} else {
 			// The client is trying to use a refresh token that isn't their
 			// current or previous one, but still has information in the
@@ -792,7 +799,7 @@ impl Service {
 			);
 			self.db.refreshtoken_refreshtokeninfo.remove(&refresh_token);
 			return Err(OAuthError::invalid_grant("Invalid refresh token"));
-		}
+		};
 
 		session_info.temporary_scopes.clear();
 
@@ -806,6 +813,7 @@ impl Service {
 				&refresh_token_info.user_id,
 				&refresh_token_info.device_id,
 				new_access_token.clone(),
+				previous_token_action,
 			)
 			.await
 			.expect("should be able to set token");

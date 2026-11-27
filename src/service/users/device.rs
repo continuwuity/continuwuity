@@ -17,6 +17,18 @@ use serde_json::json;
 
 use crate::users::increment;
 
+#[derive(Clone, Copy, Debug)]
+pub enum PreviousTokenAction {
+	/// Discard any previously saved access token for this device.
+	Clear,
+	/// Save the replaced access token as the previous token, overwriting any
+	/// existing one.
+	Replace,
+	/// Keep an existing previous access token if one is already saved;
+	/// otherwise save the replaced access token.
+	Preserve,
+}
+
 #[must_use]
 #[derive(Clone)]
 pub struct DeviceToken {
@@ -71,7 +83,8 @@ impl super::Service {
 		self.db.userdeviceid_metadata.put(key, Json(device));
 
 		if let Some(token) = token {
-			self.set_token(user_id, &device_id, token).await?;
+			self.set_token(user_id, &device_id, token, PreviousTokenAction::Clear)
+				.await?;
 		}
 
 		Ok(device_id)
@@ -165,6 +178,7 @@ impl super::Service {
 		user_id: &UserId,
 		device_id: &DeviceId,
 		DeviceToken { token, max_age }: DeviceToken,
+		previous_token_action: PreviousTokenAction,
 	) -> Result<()> {
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
@@ -187,11 +201,21 @@ impl super::Service {
 			self.db.token_userdeviceid.remove(&old_token);
 			// It will be removed from userdeviceid_token by the insert later
 
-			// Save the previous token only if we don't already have one saved
-			// for this device.
-			if !self.db.userdeviceid_previoustoken.contains(&key).await {
-				self.db.userdeviceid_previoustoken.put_raw(key, &old_token);
+			match previous_token_action {
+				| PreviousTokenAction::Clear => {
+					self.db.userdeviceid_previoustoken.del(key);
+				},
+				| PreviousTokenAction::Replace => {
+					self.db.userdeviceid_previoustoken.put_raw(key, &old_token);
+				},
+				| PreviousTokenAction::Preserve => {
+					if !self.db.userdeviceid_previoustoken.contains(&key).await {
+						self.db.userdeviceid_previoustoken.put_raw(key, &old_token);
+					}
+				},
 			}
+		} else if matches!(previous_token_action, PreviousTokenAction::Clear) {
+			self.db.userdeviceid_previoustoken.del(key);
 		}
 
 		// Assign token to user device combination

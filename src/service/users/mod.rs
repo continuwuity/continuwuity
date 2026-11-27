@@ -11,7 +11,7 @@ use std::{mem, sync::Arc};
 pub use account::{AccessTokenStatus, AccountStatus};
 use conduwuit::{Err, Error, Result, err, utils};
 use database::Map;
-pub use device::DeviceToken;
+pub use device::{DeviceToken, PreviousTokenAction};
 pub use profile::ProfileFieldChange;
 use ruma::{UserId, api::error::ErrorKind, encryption::CrossSigningKey, serde::Raw};
 use serde::{Deserialize, Serialize};

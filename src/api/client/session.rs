@@ -28,7 +28,7 @@ use ruma::{
 	},
 	assign,
 };
-use service::users::DeviceToken;
+use service::users::{DeviceToken, PreviousTokenAction};
 
 use crate::{Ruma, client_ip::ClientIp};
 
@@ -205,7 +205,7 @@ pub(crate) async fn login_route(
 	let device_id = if let Some(existing_device_id) = existing_device_id {
 		services
 			.users
-			.set_token(&user_id, &existing_device_id, token.clone())
+			.set_token(&user_id, &existing_device_id, token.clone(), PreviousTokenAction::Clear)
 			.await?;
 
 		existing_device_id
