@@ -777,6 +777,8 @@ impl Service {
 			panic!("refresh token is not current or previous for its session");
 		}
 
+		session_info.temporary_scopes.clear();
+
 		let scope = session_info.scope_string(&refresh_token_info.device_id);
 
 		let new_access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
@@ -790,8 +792,6 @@ impl Service {
 			)
 			.await
 			.expect("should be able to set token");
-
-		session_info.temporary_scopes.clear();
 
 		self.db.userdeviceid_oauthsessioninfo.put(
 			(&refresh_token_info.user_id, &refresh_token_info.device_id),
