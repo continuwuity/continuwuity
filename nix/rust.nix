@@ -12,7 +12,7 @@
         target:
         target.fromToolchainName {
           name = (lib.importTOML "${inputs.self}/rust-toolchain.toml").toolchain.channel;
-          sha256 = "sha256-MFHoWVcPZKjFrLnQnodCXbUsfZcofGfo9tV9fTTvklg=";
+          sha256 = "sha256-W3A3rtdDaQW5yOvFr5JVTfngRUCKKUqPCPIW/3aH0nM=";
         };
     in
     {
