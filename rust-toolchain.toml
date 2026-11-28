@@ -10,7 +10,7 @@
 
 [toolchain]
 profile = "minimal"
-channel = "1.100.0"
+channel = "1.100.1"
 components = [
     # For rust-analyzer
     "rust-src",
